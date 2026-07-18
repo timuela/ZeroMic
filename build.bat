@@ -8,4 +8,4 @@ if not exist ".venv\Scripts\pyinstaller" (
     exit /b 1
 )
 
-.venv\Scripts\pyinstaller -i icon.ico --onefile --uac-admin --add-data "webui;webui" --hidden-import="engineio.async_drivers.threading" main.py
+.venv\Scripts\pyinstaller -i icon.ico --onefile --uac-admin --add-data "webui;webui" --add-data "icon.ico;." --hidden-import="engineio.async_drivers.threading" --hidden-import="pystray" --hidden-import="PIL" main.py

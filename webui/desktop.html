@@ -9,6 +9,7 @@
     <script src="./lib/mdui.global.js"></script>
     <link href="./lib/mdui-icons.css" rel="stylesheet">
     <script src="./lib/socket.io.min.js"></script>
+    <script src="./lib/qrcode.min.js"></script>
 
     <style>
         :root {
@@ -111,6 +112,12 @@
         .speaker-button.muted { background-color: var(--color-muted) !important; color: #4a0005 !important; }
         .volume-ring.muted { background-color: var(--color-muted); transform: scale(1) !important; opacity: 0.1; }
 
+        mdui-select::part(menu) {
+            max-height: 256px !important; 
+            overflow-y: auto !important;
+            max-width: calc(100vw - 40px) !important;
+            overflow-x: hidden !important;
+        }
     </style>
 </head>
 <body>
@@ -161,7 +168,7 @@
     </div>
 
     <div id="tutorial-card" class="tutorial-card">
-        <mdui-icon name="qr_code_scanner" style="font-size: 32px; color: rgb(var(--mdui-color-primary));"></mdui-icon>
+        <div id="qrcode" style="padding: 8px; background: #fff; border-radius: 12px; display: inline-block; box-shadow: 0 4px 12px rgba(0,0,0,0.15); margin-bottom: 4px;"></div>
         <div style="font-size: 16px; font-weight: bold; margin-top: 12px;" data-i18n="tutorial_title">等待手机连接</div>
         <div style="font-size: 13px; color: #aaa; margin-top: 8px; line-height: 1.6;" data-i18n="tutorial_desc">
             请确保手机与电脑在同一局域网<br>
@@ -319,6 +326,17 @@
             i18nData = await response.json();
             currentLang = lang;
             renderI18n(); // 数据加载完毕后立即重绘 UI
+
+            // 额外通知后端 Python 更新系统托盘的语言
+            try {
+                await fetch('/api/set_lang', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ lang: lang })
+                });
+            } catch (e) {
+                console.warn('通知后端更新语言失败:', e);
+            }
         } catch (error) {
             console.error(`加载语言包 ${lang}.json 失败:`, error);
             // 容错处理：如果请求失败，可以尝试回退
@@ -337,13 +355,28 @@
 
     // === 1. 初始化拉取局域网 IP 显示教程 ===
     fetch('/api/info').then(res => res.json()).then(data => {
-        document.getElementById('tutorial-ip').innerText = `https://${data.ip}:${data.port}`;
+        const url = `https://${data.ip}:${data.port}`;
+        document.getElementById('tutorial-ip').innerText = url;
+        
+        // 动态生成二维码
+        new QRCode(document.getElementById("qrcode"), {
+            text: url,
+            width: 140,
+            height: 140,
+            colorDark : "#000000",
+            colorLight : "#ffffff",
+            correctLevel : QRCode.CorrectLevel.H
+        });
     });
 
 
     // === 2. 信令连接与状态切换 ===
     socket.on('connect', () => {
         socket.emit('join', { role: 'desktop' });
+    });
+
+    socket.on('toggle_mute', () => {
+        if (speakerBtn) speakerBtn.click();
     });
 
     socket.on('ready', (data) => {
@@ -516,6 +549,17 @@ async function loadAudioDevices() {
             updateUIState('active');
             drawVolume();
         }
+        
+        // 同步状态给后端 Python，更新托盘菜单文字
+        try {
+            await fetch('/api/sync_mute', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ muted: !isPlaying })
+            });
+        } catch (e) {
+            console.warn('同步静音状态失败:', e);
+        }
     });
 
     function drawVolume() {
@@ -666,8 +710,12 @@ async function loadAudioDevices() {
                             const reminderText = document.getElementById('install-reminder-text');
                             if (platformInfo?.post_install_warning) {
                                 reminderText.innerText = platformInfo.post_install_warning;
+                                dialogInstallReminder.open = true;
+                            } else {
+                                // 如果没有警告文案，直接跳过弹窗
+                                btnUninstall.style.display = '';
+                                loadAudioDevices();
                             }
-                            dialogInstallReminder.open = true;
                             
                         }, 300);
                     }, 1500);

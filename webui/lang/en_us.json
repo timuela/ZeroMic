@@ -49,6 +49,9 @@
   "m_mic_muted": "Muted",
   "m_alert_title": "Permission Denied",
   "m_alert_desc": "Please allow browser access to the microphone.",
-  "m_alert_ok": "OK"
-
+  "m_alert_ok": "OK",
+  "tray_show": "Show Window",
+  "tray_exit": "Quit",
+  "tray_mute": "Mute",
+  "tray_unmute": "Unmute"
 }

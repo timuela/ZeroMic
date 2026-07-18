@@ -1,2 +1,4 @@
 # Windows 专属依赖
 comtypes==1.4.2
+pystray>=0.19.3
+Pillow>=10.2.0

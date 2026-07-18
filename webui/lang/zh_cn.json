@@ -51,5 +51,9 @@
   "m_mic_muted": "已静音",
   "m_alert_title": "权限被拒绝",
   "m_alert_desc": "请允许浏览器访问麦克风。",
-  "m_alert_ok": "好"
+  "m_alert_ok": "好",
+  "tray_show": "显示主窗口",
+  "tray_exit": "退出",
+  "tray_mute": "静音",
+  "tray_unmute": "取消静音"
 }
