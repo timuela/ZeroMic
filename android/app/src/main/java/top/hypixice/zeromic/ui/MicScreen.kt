@@ -5,6 +5,9 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,21 +16,24 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MicOff
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -36,6 +42,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -48,6 +55,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -62,7 +70,8 @@ fun MicScreen(viewModel: MicViewModel) {
     val context = LocalContext.current
     val state by viewModel.state.collectAsStateWithLifecycle()
     var errorText by remember { mutableStateOf<String?>(null) }
-    var hostsOpen by remember { mutableStateOf(false) }
+    var addHostOpen by remember { mutableStateOf(false) }
+    var pendingDelete by remember { mutableStateOf<HostProfile?>(null) }
 
     val runtimePermissions = remember {
         buildList {
@@ -102,6 +111,7 @@ fun MicScreen(viewModel: MicViewModel) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())
                 .padding(padding)
                 .padding(horizontal = 24.dp, vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -134,58 +144,56 @@ fun MicScreen(viewModel: MicViewModel) {
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Box {
-                    OutlinedButton(onClick = { hostsOpen = true }, enabled = !active) {
-                        Text("${stringResource(R.string.hosts)} (${viewModel.profiles.size})")
-                    }
-                    DropdownMenu(
-                        expanded = hostsOpen,
-                        onDismissRequest = { hostsOpen = false }
-                    ) {
-                        if (viewModel.profiles.isEmpty()) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.hosts_empty)) },
-                                onClick = {},
-                                enabled = false
-                            )
-                        }
-                        viewModel.profiles.forEach { profile ->
-                            DropdownMenuItem(
-                                text = { Text(profile.address) },
-                                onClick = {
-                                    viewModel.selectProfile(profile)
-                                    hostsOpen = false
-                                }
-                            )
-                        }
-                        HorizontalDivider()
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.host_save)) },
-                            enabled = viewModel.address.isNotBlank(),
-                            leadingIcon = {
-                                Icon(Icons.Filled.Add, contentDescription = null)
-                            },
-                            onClick = {
-                                viewModel.saveCurrentProfile()
-                                hostsOpen = false
-                            }
+                Text(
+                    text = stringResource(R.string.hosts),
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.weight(1f))
+                OutlinedButton(onClick = { addHostOpen = true }, enabled = !active) {
+                    Icon(
+                        imageVector = Icons.Filled.Add,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.size(6.dp))
+                    Text(stringResource(R.string.host_add))
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
+
+            if (viewModel.profiles.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.hosts_empty),
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(3),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(116.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    userScrollEnabled = !active
+                ) {
+                    items(viewModel.profiles, key = { it.address }) { profile ->
+                        HostCard(
+                            profile = profile,
+                            selected = profile.address == viewModel.address.trim(),
+                            onClick = { viewModel.selectProfile(profile) },
+                            onLongClick = { pendingDelete = profile }
                         )
-                        if (viewModel.hasProfileFor(viewModel.address)) {
-                            val current = viewModel.address.trim()
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.host_delete)) },
-                                leadingIcon = {
-                                    Icon(Icons.Filled.Delete, contentDescription = null)
-                                },
-                                onClick = {
-                                    viewModel.deleteProfile(HostProfile(current, current))
-                                    hostsOpen = false
-                                }
-                            )
-                        }
                     }
                 }
-                Spacer(Modifier.weight(1f))
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = stringResource(R.string.host_delete_hint),
+                    fontSize = 10.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
 
             Spacer(Modifier.height(12.dp))
@@ -223,7 +231,7 @@ fun MicScreen(viewModel: MicViewModel) {
                 )
             }
 
-            Spacer(Modifier.weight(1f))
+            Spacer(Modifier.height(24.dp))
 
             Box(Modifier.size(180.dp), contentAlignment = Alignment.Center) {
                 val (buttonColor, icon, tint) = micAppearance(state)
@@ -292,6 +300,155 @@ fun MicScreen(viewModel: MicViewModel) {
             Spacer(Modifier.height(8.dp))
         }
     }
+
+    if (addHostOpen) {
+        AddHostDialog(
+            initialAddress = viewModel.address.trim(),
+            onDismiss = { addHostOpen = false },
+            onConfirm = { name, address, description ->
+                viewModel.addProfile(name, address, description)
+                addHostOpen = false
+            }
+        )
+    }
+
+    pendingDelete?.let { profile ->
+        AlertDialog(
+            onDismissRequest = { pendingDelete = null },
+            title = { Text(stringResource(R.string.host_delete_confirm)) },
+            text = { Text(profile.name) },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.deleteProfile(profile)
+                    pendingDelete = null
+                }) {
+                    Text(stringResource(R.string.host_delete))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDelete = null }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun HostCard(
+    profile: HostProfile,
+    selected: Boolean,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 54.dp)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
+        shape = MaterialTheme.shapes.medium,
+        color = if (selected) {
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
+        } else {
+            MaterialTheme.colorScheme.surfaceVariant
+        },
+        border = BorderStroke(
+            width = 1.dp,
+            color = if (selected) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.outline
+            }
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Text(
+                text = profile.name,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = profile.address,
+                fontSize = 10.sp,
+                maxLines = 1,
+                softWrap = false,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            if (profile.description.isNotBlank()) {
+                Text(
+                    text = profile.description,
+                    fontSize = 10.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AddHostDialog(
+    initialAddress: String,
+    onDismiss: () -> Unit,
+    onConfirm: (String, String, String) -> Unit
+) {
+    var name by remember { mutableStateOf("") }
+    var address by remember { mutableStateOf(initialAddress) }
+    var description by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.host_add_title)) },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    singleLine = true,
+                    label = { Text(stringResource(R.string.host_name)) },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = address,
+                    onValueChange = { address = it },
+                    singleLine = true,
+                    label = { Text(stringResource(R.string.host_ip)) },
+                    placeholder = { Text(stringResource(R.string.address_hint)) },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    singleLine = true,
+                    label = { Text(stringResource(R.string.host_description)) },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = name.isNotBlank() && address.isNotBlank(),
+                onClick = { onConfirm(name.trim(), address.trim(), description.trim()) }
+            ) {
+                Text(stringResource(R.string.host_add))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.cancel))
+            }
+        }
+    )
 }
 
 @Composable

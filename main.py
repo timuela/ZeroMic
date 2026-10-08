@@ -18,7 +18,7 @@ else:
     base_path = os.path.dirname(os.path.abspath(__file__))
 
 # 常量
-VERSION = "v0.1.0"
+VERSION = "v0.1.1"
 DEFAULT_PORT = 5000
 
 # 单实例检测

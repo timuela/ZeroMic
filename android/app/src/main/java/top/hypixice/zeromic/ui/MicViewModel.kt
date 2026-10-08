@@ -74,15 +74,12 @@ class MicViewModel(application: Application) : AndroidViewModel(application) {
         address = profile.address
     }
 
-    fun hasProfileFor(value: String): Boolean {
-        val target = value.trim()
-        return target.isNotEmpty() && profiles.any { it.address == target }
-    }
-
-    fun saveCurrentProfile() {
+    fun addProfile(name: String, address: String, description: String) {
         val target = address.trim()
         if (target.isEmpty()) return
-        val updated = profiles.filterNot { it.address == target } + HostProfile(target, target)
+        val label = name.trim().ifEmpty { target }
+        val updated = profiles.filterNot { it.address == target } +
+            HostProfile(label, target, description.trim())
         profiles = updated
         prefs.saveProfiles(updated)
     }

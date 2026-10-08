@@ -6,7 +6,8 @@ import org.json.JSONObject
 
 data class HostProfile(
     val name: String,
-    val address: String
+    val address: String,
+    val description: String = ""
 )
 
 class Prefs(context: Context) {
@@ -27,7 +28,15 @@ class Prefs(context: Context) {
             (0 until array.length()).mapNotNull { index ->
                 val obj = array.optJSONObject(index) ?: return@mapNotNull null
                 val address = obj.optString("address", "")
-                if (address.isEmpty()) null else HostProfile(obj.optString("name", address), address)
+                if (address.isEmpty()) {
+                    null
+                } else {
+                    HostProfile(
+                        name = obj.optString("name", address),
+                        address = address,
+                        description = obj.optString("description", "")
+                    )
+                }
             }
         } catch (e: Exception) {
             emptyList()
@@ -41,6 +50,7 @@ class Prefs(context: Context) {
                 JSONObject()
                     .put("name", profile.name)
                     .put("address", profile.address)
+                    .put("description", profile.description)
             )
         }
         prefs.edit().putString(KEY_PROFILES, array.toString()).apply()
