@@ -71,7 +71,8 @@
 用 `aiortc` 作为 WebRTC 的 answerer 接听，并通过 `sounddevice` 把解码后的音频直接写入虚拟声卡。
 不再需要 WebView2，也不再依赖浏览器。
 
-发布文件名为 `ZeroMic-Host-Portable-<版本>-<平台>`，免安装，直接运行。
+Windows 上发布文件名为 `ZeroMic-Host-Portable-<版本>-windows-x64.exe`，免安装直接运行；
+Linux 与 macOS 上为 `ZeroMic-Host-<版本>-<平台>`。
 
 - 原生窗口 + 系统托盘（显示 / 静音 / 退出）。
 - 由 `aiortc` 负责 WebRTC 接听；仅使用局域网宿主候选（host candidate），秒连。

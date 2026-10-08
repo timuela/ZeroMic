@@ -69,7 +69,8 @@ The PC side is a **native Qt application** (PySide6), not a web page. It hosts t
 HTTPS / Socket.IO signalling server, answers the WebRTC call with `aiortc`, and writes the decoded
 audio straight into the virtual cable through `sounddevice`. No WebView2, no browser involved.
 
-Released as `ZeroMic-Host-Portable-<version>-<platform>` — no installer, just run it.
+Released as `ZeroMic-Host-Portable-<version>-windows-x64.exe` on Windows — no installer, just run
+it — and `ZeroMic-Host-<version>-<platform>` on Linux and macOS.
 
 - Native window + system tray (show / mute / exit).
 - `aiortc` as the WebRTC answerer; host-candidate ICE only, so it connects instantly on the LAN.
