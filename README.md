@@ -80,7 +80,7 @@ it — and `ZeroMic-Host-<version>-<platform>` on Linux and macOS.
 - Auto-matches the virtual device (`CABLE Input` / `zeromic_sink` / `BlackHole`).
 - Live gain slider and mute that act on the audio callback, so they respond instantly.
 
-> **Building requires Python 3.11–3.13.** PySide6 does not support 3.14 yet.
+> **Building requires Python 3.11 or newer** (PySide6 6.10+ supports 3.14; CI builds on 3.11).
 
 ## 📱 ZeroMic Client — Android
 

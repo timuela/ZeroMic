@@ -82,7 +82,7 @@ Linux 与 macOS 上为 `ZeroMic-Host-<版本>-<平台>`。
 - 自动匹配虚拟设备（`CABLE Input` / `zeromic_sink` / `BlackHole`）。
 - 音量与静音直接作用于音频回调，响应即时。
 
-> **构建需要 Python 3.11–3.13。** PySide6 目前尚不支持 3.14。
+> **构建需要 Python 3.11 或更高版本**（PySide6 6.10 起支持 3.14；CI 使用 3.11）。
 
 ## 📱 ZeroMic Client — Android 客户端
 

@@ -216,7 +216,7 @@ class MainWindow(QMainWindow):
     def _build(self):
         self.setWindowTitle("ZeroMic Desktop")
         self.resize(420, 820)
-        self.setWindowIcon(QApplication.applicationIcon())
+        self.setWindowIcon(QApplication.windowIcon())
 
         central = QWidget()
         central.setObjectName("centralWidget")

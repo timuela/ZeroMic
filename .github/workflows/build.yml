@@ -78,6 +78,14 @@ jobs:
           fi
           pip install pyinstaller
 
+      # Catches missing/misnamed Qt APIs and paint-time errors before there is
+      # a binary to download; a startup crash reached users once already.
+      - name: Smoke-test the Qt app
+        if: runner.os == 'Linux'
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python desktop/smoke_test.py
+
       - name: Get Version String
         id: version
         shell: bash
