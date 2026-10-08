@@ -10,7 +10,8 @@ target_arch = os.environ.get('TARGET_ARCH', None)
 base_datas = [
     ('webui', 'webui'),
     ('desktop/style.qss', 'desktop'),
-    ('desktop/MaterialIcons.ttf', 'desktop'),
+    ('desktop/icon-volume-off.png', 'desktop'),
+    ('desktop/icon-volume-up.png', 'desktop'),
     ('icon.ico', '.'),
 ]
 if sys.platform == 'win32':

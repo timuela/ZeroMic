@@ -2,8 +2,8 @@ import math
 import os
 import sys
 
-from PySide6.QtCore import QPointF, Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QFont, QFontDatabase, QPainter, QPixmap
+from PySide6.QtCore import QPointF, QSize, Qt, QTimer, Signal
+from PySide6.QtGui import QColor, QPainter, QPixmap
 from PySide6.QtWidgets import (
     QComboBox,
     QFrame,
@@ -21,14 +21,13 @@ DOT_OK = "#4CAF50"
 DOT_WARN = "#FF9800"
 DOT_ERROR = "#FF5252"
 
-ICON_FONT_FILE = "MaterialIcons.ttf"
-ICON_VOLUME_OFF = 0xE04F
-ICON_VOLUME_UP = 0xE050
+ICON_FILE_OFF = "icon-volume-off.png"
+ICON_FILE_UP = "icon-volume-up.png"
 
 BUTTON_DIAMETER = 124
 BUTTON_WIDGET_SIZE = 216
 RING_MAX_SCALE = 1.55
-ICON_PIXEL_SIZE = 54
+ICON_PIXEL_SIZE = 46
 
 BUTTON_IDLE_BG = QColor(0x2A, 0x2A, 0x2A)
 BUTTON_IDLE_FG = QColor(0x8A, 0x8A, 0x8A)
@@ -37,33 +36,51 @@ BUTTON_ACTIVE_FG = QColor(0xFF, 0xFF, 0xFF)
 BUTTON_MUTED_BG = QColor(0xFF, 0xB3, 0xAE)
 BUTTON_MUTED_FG = QColor(0x4A, 0x00, 0x05)
 
-_icon_family_cache = None
-_icon_family_loaded = False
+_pixmap_cache = {}
+_tinted_cache = {}
 
 
-def _load_icon_family():
-    """Register the bundled Material Icons subset so we can draw the real web icons."""
+def _load_pixmap(filename):
+    if filename in _pixmap_cache:
+        return _pixmap_cache[filename]
+
     here = os.path.dirname(os.path.abspath(__file__))
     candidates = [
-        os.path.join(here, ICON_FONT_FILE),
-        os.path.join(getattr(sys, "_MEIPASS", ""), "desktop", ICON_FONT_FILE),
+        os.path.join(here, filename),
+        os.path.join(getattr(sys, "_MEIPASS", ""), "desktop", filename),
     ]
+
+    pixmap = None
     for path in candidates:
         if path and os.path.exists(path):
-            font_id = QFontDatabase.addApplicationFont(path)
-            if font_id != -1:
-                families = QFontDatabase.applicationFontFamilies(font_id)
-                if families:
-                    return families[0]
-    return None
+            candidate = QPixmap(path)
+            if not candidate.isNull():
+                pixmap = candidate
+                break
+
+    _pixmap_cache[filename] = pixmap
+    return pixmap
 
 
-def icon_family():
-    global _icon_family_cache, _icon_family_loaded
-    if not _icon_family_loaded:
-        _icon_family_cache = _load_icon_family()
-        _icon_family_loaded = True
-    return _icon_family_cache
+def _tinted_pixmap(filename, color):
+    """Recolour a white glyph on a transparent background by keeping its alpha."""
+    key = (filename, color.rgba())
+    if key in _tinted_cache:
+        return _tinted_cache[key]
+
+    source = _load_pixmap(filename)
+    tinted = None
+    if source is not None:
+        tinted = QPixmap(source.size())
+        tinted.fill(Qt.transparent)
+        painter = QPainter(tinted)
+        painter.drawPixmap(0, 0, source)
+        painter.setCompositionMode(QPainter.CompositionMode_SourceIn)
+        painter.fillRect(tinted.rect(), color)
+        painter.end()
+
+    _tinted_cache[key] = tinted
+    return tinted
 
 
 def _normalise_level(rms):
@@ -87,7 +104,6 @@ class MicButton(QWidget):
         self._level_provider = level_provider
         self._state = "idle"
         self._display = 0.0
-        self._family = icon_family()
 
         self._timer = QTimer(self)
         self._timer.setInterval(16)  # ~60 fps, like requestAnimationFrame
@@ -130,11 +146,11 @@ class MicButton(QWidget):
         painter.setRenderHint(QPainter.TextAntialiasing, True)
 
         if self._state == "muted":
-            button_bg, icon_fg, icon_cp = BUTTON_MUTED_BG, BUTTON_MUTED_FG, ICON_VOLUME_OFF
+            button_bg, icon_fg, icon_file = BUTTON_MUTED_BG, BUTTON_MUTED_FG, ICON_FILE_OFF
         elif self._state == "active":
-            button_bg, icon_fg, icon_cp = BUTTON_ACTIVE_BG, BUTTON_ACTIVE_FG, ICON_VOLUME_UP
+            button_bg, icon_fg, icon_file = BUTTON_ACTIVE_BG, BUTTON_ACTIVE_FG, ICON_FILE_UP
         else:
-            button_bg, icon_fg, icon_cp = BUTTON_IDLE_BG, BUTTON_IDLE_FG, ICON_VOLUME_OFF
+            button_bg, icon_fg, icon_file = BUTTON_IDLE_BG, BUTTON_IDLE_FG, ICON_FILE_OFF
 
         centre = QPointF(self.width() / 2.0, self.height() / 2.0)
         button_radius = BUTTON_DIAMETER / 2.0
@@ -152,12 +168,17 @@ class MicButton(QWidget):
         painter.setBrush(button_bg)
         painter.drawEllipse(centre, button_radius, button_radius)
 
-        if self._family:
-            font = QFont(self._family)
-            font.setPixelSize(ICON_PIXEL_SIZE)
-            painter.setFont(font)
-            painter.setPen(icon_fg)
-            painter.drawText(self.rect(), Qt.AlignCenter, chr(icon_cp))
+        pixmap = _tinted_pixmap(icon_file, icon_fg)
+        if pixmap is not None:
+            ratio = self.devicePixelRatioF() or 1.0
+            target = QSize(int(ICON_PIXEL_SIZE * ratio), int(ICON_PIXEL_SIZE * ratio))
+            scaled = pixmap.scaled(target, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            scaled.setDevicePixelRatio(ratio)
+            width = scaled.width() / ratio
+            height = scaled.height() / ratio
+            painter.drawPixmap(
+                QPointF(centre.x() - width / 2.0, centre.y() - height / 2.0), scaled
+            )
 
 
 class MainWindow(QMainWindow):
