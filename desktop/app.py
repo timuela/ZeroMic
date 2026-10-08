@@ -30,19 +30,27 @@ def _detect_language():
     return "zh_cn" if str(tag).lower().startswith("zh") else "en_us"
 
 
-def _load_strings(webui_dir):
-    data = {}
-    try:
-        path = os.path.join(webui_dir, "lang", f"{_detect_language()}.json")
-        with open(path, "r", encoding="utf-8") as handle:
-            data = json.load(handle)
-    except Exception:
-        data = {}
+class Translator:
+    """Loads the same webui/lang/*.json files the browser UI uses."""
 
-    def t(key, fallback=""):
-        return data.get(key, fallback)
+    def __init__(self, webui_dir, language=None):
+        self._dir = webui_dir
+        self.lang = language or _detect_language()
+        self._data = {}
+        self.load(self.lang)
 
-    return t
+    def load(self, language):
+        self.lang = language
+        self._data = {}
+        try:
+            path = os.path.join(self._dir, "lang", f"{language}.json")
+            with open(path, "r", encoding="utf-8") as handle:
+                self._data = json.load(handle)
+        except Exception:
+            log.debug("could not load language file for %s", language)
+
+    def __call__(self, key, fallback=""):
+        return self._data.get(key, fallback)
 
 
 def _style_path():
@@ -126,7 +134,8 @@ class DesktopApp:
         self._port = port
         self._url = url
         self._version = version
-        self._t = _load_strings(webui_dir)
+        self._translator = Translator(webui_dir)
+        self._t = self._translator
 
         self._runner = AsyncRunner()
         self._feedback = Feedback()
@@ -135,8 +144,9 @@ class DesktopApp:
 
         self._current_device = None
         self._hint_shown = False
+        self._muted = False
 
-        self._window = MainWindow(self._t, version)
+        self._window = MainWindow(self._t, version, self._translator.lang)
         self._window.set_level_provider(self._session.level)
         self._window.set_url(url)
         self._window.set_gain(1.0)
@@ -160,6 +170,7 @@ class DesktopApp:
         self._window.deviceChanged.connect(self._on_device_changed)
         self._window.uninstallDriverRequested.connect(self._on_uninstall_driver)
         self._window.aboutRequested.connect(self._on_about)
+        self._window.languageToggled.connect(self._on_language_toggled)
 
         self._feedback.presenceChanged.connect(self._window.set_presence)
         self._feedback.linkStateChanged.connect(self._window.set_link_state)
@@ -174,18 +185,18 @@ class DesktopApp:
         tray = QSystemTrayIcon(QIcon(icon_path) if icon_path else QIcon(), self._window)
 
         menu = QMenu()
-        show_action = QAction(self._t("tray_show", "Show Window"), menu)
-        show_action.triggered.connect(self._show_window)
-        menu.addAction(show_action)
+        self._show_action = QAction(self._t("tray_show", "Show Window"), menu)
+        self._show_action.triggered.connect(self._show_window)
+        menu.addAction(self._show_action)
 
         self._mute_action = QAction(self._t("tray_mute", "Mute"), menu)
         self._mute_action.triggered.connect(lambda: self._session.toggle_mute(broadcast=True))
         menu.addAction(self._mute_action)
 
         menu.addSeparator()
-        quit_action = QAction(self._t("tray_exit", "Exit ZeroMic"), menu)
-        quit_action.triggered.connect(self._quit)
-        menu.addAction(quit_action)
+        self._quit_action = QAction(self._t("tray_exit", "Quit"), menu)
+        self._quit_action.triggered.connect(self._quit)
+        menu.addAction(self._quit_action)
 
         tray.setContextMenu(menu)
         tray.setToolTip("ZeroMic")
@@ -243,10 +254,22 @@ class DesktopApp:
         self._session.select_device(index)
 
     def _on_muted_changed(self, muted):
+        self._muted = muted
         self._window.set_muted(muted)
+        self._refresh_tray_texts()
+
+    def _refresh_tray_texts(self):
+        self._show_action.setText(self._t("tray_show", "Show Window"))
         self._mute_action.setText(
-            self._t("tray_unmute", "Unmute") if muted else self._t("tray_mute", "Mute")
+            self._t("tray_unmute", "Unmute") if self._muted else self._t("tray_mute", "Mute")
         )
+        self._quit_action.setText(self._t("tray_exit", "Quit"))
+
+    def _on_language_toggled(self):
+        next_lang = "en_us" if self._translator.lang == "zh_cn" else "zh_cn"
+        self._translator.load(next_lang)
+        self._window.set_language(next_lang)
+        self._refresh_tray_texts()
 
     def _on_error(self, message):
         QMessageBox.warning(self._window, "ZeroMic", message)
@@ -341,6 +364,11 @@ def run_desktop(platform, port, url, version, webui_dir, icon_path=None):
         app = QApplication(sys.argv)
     app.setApplicationName("ZeroMic")
     app.setQuitOnLastWindowClosed(False)
+
+    if icon_path:
+        icon = QIcon(icon_path)
+        if not icon.isNull():
+            app.setWindowIcon(icon)
 
     style = _style_path()
     if style:

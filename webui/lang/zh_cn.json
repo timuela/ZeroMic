@@ -55,5 +55,13 @@
   "tray_show": "显示主窗口",
   "tray_exit": "退出",
   "tray_mute": "静音",
-  "tray_unmute": "取消静音"
+  "tray_unmute": "取消静音",
+
+  "tray_hint": "ZeroMic 仍在系统托盘中运行",
+  "desktop_gain": "音量",
+  "desktop_connect": "连接",
+  "desktop_disconnect": "断开",
+  "status_connecting": "连接中...",
+  "status_error": "连接失败",
+  "status_offline": "未连接到服务"
 }

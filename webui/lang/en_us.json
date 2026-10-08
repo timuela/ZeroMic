@@ -53,5 +53,13 @@
   "tray_show": "Show Window",
   "tray_exit": "Quit",
   "tray_mute": "Mute",
-  "tray_unmute": "Unmute"
+  "tray_unmute": "Unmute",
+
+  "tray_hint": "ZeroMic is still running in the tray",
+  "desktop_gain": "Volume",
+  "desktop_connect": "Connect",
+  "desktop_disconnect": "Disconnect",
+  "status_connecting": "Connecting...",
+  "status_error": "Connection Failed",
+  "status_offline": "Not connected to service"
 }

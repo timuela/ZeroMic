@@ -34,23 +34,25 @@ class MainWindow(QMainWindow):
     installDriverRequested = Signal()
     uninstallDriverRequested = Signal()
     aboutRequested = Signal()
+    languageToggled = Signal()
     installReminderAcknowledged = Signal()
 
-    def __init__(self, t, version):
+    def __init__(self, t, version, language="en_us"):
         super().__init__()
         self._t = t
         self._version = version
+        self._language = language
         self._link_up = False
         self._presence = False
         self._rtc_state = "new"
         self._muted = False
         self._active = False
+        self._level_provider = None
         self._build()
 
         self._level_timer = QTimer(self)
         self._level_timer.setInterval(40)
         self._level_timer.timeout.connect(self._tick_level)
-        self._level_provider = None
         self._level_timer.start()
 
     # ------------------------------------------------------------------
@@ -58,7 +60,7 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------
     def _build(self):
         self.setWindowTitle("ZeroMic Desktop")
-        self.resize(400, 780)
+        self.resize(420, 800)
 
         central = QWidget()
         central.setObjectName("centralWidget")
@@ -78,12 +80,18 @@ class MainWindow(QMainWindow):
         header.addWidget(self._version_label)
         header.addStretch(1)
 
-        self._about_button = QPushButton(self._t("about", "关于"))
+        self._lang_button = QPushButton("")
+        self._lang_button.setObjectName("flatButton")
+        self._lang_button.setFixedWidth(44)
+        self._lang_button.clicked.connect(lambda: self.languageToggled.emit())
+        header.addWidget(self._lang_button)
+
+        self._about_button = QPushButton(self._t("header_about", "About"))
         self._about_button.setObjectName("flatButton")
         self._about_button.clicked.connect(lambda: self.aboutRequested.emit())
         header.addWidget(self._about_button)
 
-        self._uninstall_button = QPushButton(self._t("uninstall", "卸载驱动"))
+        self._uninstall_button = QPushButton(self._t("header_uninstall", "Uninstall Driver"))
         self._uninstall_button.setObjectName("flatButton")
         self._uninstall_button.clicked.connect(lambda: self.uninstallDriverRequested.emit())
         self._uninstall_button.setVisible(False)
@@ -99,7 +107,7 @@ class MainWindow(QMainWindow):
 
         status_box = QVBoxLayout()
         status_box.setSpacing(6)
-        self._status_title = QLabel(self._t("status_label", "手机连接状态"))
+        self._status_title = QLabel(self._t("status_label", "Mobile Connection"))
         self._status_title.setObjectName("statusTitle")
         status_box.addWidget(self._status_title)
 
@@ -108,7 +116,7 @@ class MainWindow(QMainWindow):
         self._dot = QLabel()
         self._dot.setFixedSize(10, 10)
         status_row.addWidget(self._dot)
-        self._status_text = QLabel(self._t("status_wait", "等待设备..."))
+        self._status_text = QLabel("")
         self._status_text.setObjectName("statusText")
         status_row.addWidget(self._status_text)
         status_row.addStretch(1)
@@ -129,9 +137,9 @@ class MainWindow(QMainWindow):
         self._qr_label.setAlignment(Qt.AlignCenter)
         tutorial.addWidget(self._qr_label)
 
-        tutorial_title = QLabel(self._t("tutorial_title", "等待手机连接"))
-        tutorial_title.setAlignment(Qt.AlignCenter)
-        tutorial.addWidget(tutorial_title)
+        self._tutorial_title = QLabel(self._t("tutorial_title", "Waiting for Mobile"))
+        self._tutorial_title.setAlignment(Qt.AlignCenter)
+        tutorial.addWidget(self._tutorial_title)
 
         self._url_label = QLabel("...")
         self._url_label.setObjectName("urlLabel")
@@ -139,11 +147,11 @@ class MainWindow(QMainWindow):
         self._url_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
         tutorial.addWidget(self._url_label)
 
-        warn = QLabel(self._t("tutorial_warn", "提示“连接不安全”是正常的"))
-        warn.setObjectName("warnLabel")
-        warn.setAlignment(Qt.AlignCenter)
-        warn.setWordWrap(True)
-        tutorial.addWidget(warn)
+        self._tutorial_warn = QLabel(self._t("tutorial_warn", "The \u201cNot Secure\u201d warning is normal."))
+        self._tutorial_warn.setObjectName("warnLabel")
+        self._tutorial_warn.setAlignment(Qt.AlignCenter)
+        self._tutorial_warn.setWordWrap(True)
+        tutorial.addWidget(self._tutorial_warn)
 
         root.addWidget(self._tutorial_card)
 
@@ -158,8 +166,8 @@ class MainWindow(QMainWindow):
         control.addWidget(self._device_combo)
 
         gain_row = QHBoxLayout()
-        gain_label = QLabel(self._t("gain", "音量"))
-        gain_row.addWidget(gain_label)
+        self._gain_label = QLabel(self._t("desktop_gain", "Volume"))
+        gain_row.addWidget(self._gain_label)
         gain_row.addStretch(1)
         self._gain_value_label = QLabel("1.0x")
         self._gain_value_label.setObjectName("gainValue")
@@ -188,13 +196,13 @@ class MainWindow(QMainWindow):
 
         root.addStretch(1)
 
-        self._connect_button = QPushButton(self._t("connect", "连接"))
+        self._connect_button = QPushButton("")
         self._connect_button.setObjectName("primaryButton")
         self._connect_button.clicked.connect(self._on_connect_clicked)
         root.addWidget(self._connect_button)
 
+        self.set_language(self._language)
         self._apply_mic_style()
-        self._refresh_status()
 
     # ------------------------------------------------------------------
     # slots
@@ -218,17 +226,36 @@ class MainWindow(QMainWindow):
             self.deviceChanged.emit(int(device))
 
     def _tick_level(self):
-        if self._level_provider is None:
+        if self._level_provider is None or not self._presence:
             return
         try:
             level = float(self._level_provider())
         except Exception:
             return
-        if not self._presence:
-            return
-        size = int(140 + min(level * 6.0, 1.0) * 46)
+        size = int(140 + min(max(level, 0.0) * 6.0, 1.0) * 46)
         self._mic_button.setFixedSize(size, size)
         self._apply_mic_style(size)
+
+    # ------------------------------------------------------------------
+    # language
+    # ------------------------------------------------------------------
+    def set_language(self, language):
+        self._language = language
+        # Show the language you would switch to, like the web UI does.
+        self._lang_button.setText("EN" if language == "zh_cn" else "\u4e2d")
+        self.retranslate()
+
+    def retranslate(self):
+        self._about_button.setText(self._t("header_about", "About"))
+        self._uninstall_button.setText(self._t("header_uninstall", "Uninstall Driver"))
+        self._status_title.setText(self._t("status_label", "Mobile Connection"))
+        self._gain_label.setText(self._t("desktop_gain", "Volume"))
+        self._tutorial_title.setText(self._t("tutorial_title", "Waiting for Mobile"))
+        self._tutorial_warn.setText(
+            self._t("tutorial_warn", "The \u201cNot Secure\u201d warning is normal.")
+        )
+        self.set_active(self._active)
+        self._refresh_status()
 
     # ------------------------------------------------------------------
     # updates coming from the session
@@ -265,7 +292,9 @@ class MainWindow(QMainWindow):
     def set_active(self, active):
         self._active = active
         self._connect_button.setText(
-            self._t("disconnect", "断开") if active else self._t("connect", "连接")
+            self._t("desktop_disconnect", "Disconnect")
+            if active
+            else self._t("desktop_connect", "Connect")
         )
         self._connect_button.setObjectName("dangerButton" if active else "primaryButton")
         self._connect_button.style().unpolish(self._connect_button)
@@ -299,18 +328,18 @@ class MainWindow(QMainWindow):
 
     def _refresh_status(self):
         if not self._link_up:
-            color, text = DOT_IDLE, self._t("status_offline", "未连接到服务器")
+            color, text = DOT_IDLE, self._t("status_offline", "Not connected to service")
         elif not self._presence:
-            color, text = DOT_IDLE, self._t("status_wait", "等待设备...")
+            color, text = DOT_IDLE, self._t("status_wait", "Waiting for device...")
         elif self._rtc_state in ("connected", "completed"):
             if self._muted:
-                color, text = DOT_WARN, self._t("state_muted", "已静音")
+                color, text = DOT_WARN, self._t("state_muted", "Desktop Muted")
             else:
-                color, text = DOT_OK, self._t("status_connected", "已连接")
+                color, text = DOT_OK, self._t("status_connected", "Mobile Connected")
         elif self._rtc_state in ("failed", "closed"):
-            color, text = DOT_ERROR, self._t("status_error", "连接失败")
+            color, text = DOT_ERROR, self._t("status_error", "Connection Failed")
         else:
-            color, text = DOT_WARN, self._t("status_connecting", "连接中...")
+            color, text = DOT_WARN, self._t("status_connecting", "Connecting...")
 
         self._dot.setStyleSheet(f"background-color: {color}; border-radius: 5px;")
         self._status_text.setText(text)
@@ -341,4 +370,3 @@ class MainWindow(QMainWindow):
         on_hidden = getattr(self, "on_hidden", None)
         if on_hidden is not None:
             on_hidden()
-

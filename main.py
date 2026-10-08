@@ -215,10 +215,12 @@ if __name__ == '__main__':
     # 给 Flask 一点时间启动
     time.sleep(1.5)
 
-    icon_ext = 'ico' if sys.platform == 'win32' else 'png'
-    icon_path = os.path.join(base_path, f'icon.{icon_ext}')
-    if not os.path.exists(icon_path):
-        icon_path = None
+    icon_path = None
+    for icon_name in ('icon.ico', 'icon.png', 'icon.icns'):
+        candidate = os.path.join(base_path, icon_name)
+        if os.path.exists(candidate):
+            icon_path = candidate
+            break
 
     from desktop.app import run_desktop
 
