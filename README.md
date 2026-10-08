@@ -63,6 +63,34 @@ Powered by **WebRTC P2P technology**, audio data is streamed directly within you
 6. In your game or voice chat software, set the **Microphone Input Device** to the virtual device created by ZeroMic.
 7. Start talking!
 
+## 📱 Native Android Client
+
+The browser client works, but Android browsers (Chrome, Brave, etc.) suspend the page when the
+screen turns off, which kills the microphone stream. For reliable screen-off streaming there is a
+native client in [`android/`](./android).
+
+- Runs as a foreground service with a partial wake lock + Wi-Fi lock, so the mic keeps streaming
+  while the screen is off.
+- Speaks the exact same Socket.IO + WebRTC signaling protocol as the web client — the PC side is
+  completely unchanged, and it also auto-recovers the session with an ICE restart if the network
+  path changes.
+- Enter the `IP:port` shown by the desktop UI, tap Connect, done (the last address is remembered).
+
+Requires Android 8.0 (API 26) or newer.
+
+### Build
+
+Open the `android/` folder in Android Studio (JDK 17) and run it on your device, or from the CLI:
+
+```bash
+cd android
+./gradlew assembleDebug        # Windows: gradlew.bat assembleDebug
+```
+
+The APK is written to `android/app/build/outputs/apk/debug/app-debug.apk`.
+The [`.github/workflows/android.yml`](./.github/workflows/android.yml) workflow also builds this
+debug APK on every push that touches `android/`, so you can grab it as a build artifact.
+
 ## 🛠️ Developer Guide (Build from Source)
 
 ```bash

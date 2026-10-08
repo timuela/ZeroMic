@@ -65,6 +65,29 @@
 6. 在游戏或语音软件的设置中，将 **麦克风输入设备** 更改为软件提示的虚拟设备名称。
 7. 开始说话吧！
 
+## 📱 原生 Android 客户端
+
+浏览器客户端可用，但 Android 浏览器（Chrome、Brave 等）在息屏后会挂起页面，导致麦克风流被中断。
+如需在息屏后稳定传输，可使用 [`android/`](./android) 目录下的原生客户端。
+
+- 以前台服务 + 部分唤醒锁（Partial Wake Lock）+ Wi-Fi 锁运行，息屏后麦克风仍持续传输。
+- 与网页客户端使用完全相同的 Socket.IO + WebRTC 信令协议，电脑端无需任何改动；网络路径变化时还会通过 ICE 重启自动恢复会话。
+- 输入电脑端界面显示的 `IP:端口`，点击连接即可（会自动记住上次地址）。
+
+需要 Android 8.0（API 26）及以上版本。
+
+### 构建
+
+用 Android Studio（JDK 17）打开 `android/` 目录直接运行，或使用命令行：
+
+```bash
+cd android
+./gradlew assembleDebug        # Windows 使用 gradlew.bat assembleDebug
+```
+
+APK 输出在 `android/app/build/outputs/apk/debug/app-debug.apk`。
+[`.github/workflows/android.yml`](./.github/workflows/android.yml) 也会在每次改动 `android/` 时自动构建调试包，可直接下载产物。
+
 ## 🛠️ 开发者指南 (从源码构建)
 
 ```bash

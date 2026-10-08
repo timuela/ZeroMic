@@ -1,0 +1,110 @@
+package top.hypixice.zeromic.ui
+
+import android.app.Application
+import android.content.ComponentName
+import android.content.Context
+import android.content.Intent
+import android.content.ServiceConnection
+import android.os.IBinder
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.lifecycle.AndroidViewModel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import top.hypixice.zeromic.MicPhase
+import top.hypixice.zeromic.MicService
+import top.hypixice.zeromic.MicState
+import top.hypixice.zeromic.data.Prefs
+
+class MicViewModel(application: Application) : AndroidViewModel(application) {
+
+    private val prefs = Prefs(application)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+
+    var address by mutableStateOf(prefs.address)
+        private set
+
+    var gain by mutableFloatStateOf(prefs.gain)
+        private set
+
+    private val _state = MutableStateFlow(MicState(gain = prefs.gain))
+    val state: StateFlow<MicState> = _state.asStateFlow()
+
+    private var service: MicService? = null
+    private var bound = false
+    private var collectJob: Job? = null
+
+    fun bind() {
+        if (bound) return
+        bound = getApplication<Application>().bindService(
+            Intent(getApplication(), MicService::class.java),
+            connection,
+            Context.BIND_AUTO_CREATE
+        )
+    }
+
+    fun unbind() {
+        collectJob?.cancel()
+        collectJob = null
+        if (bound) {
+            runCatching { getApplication<Application>().unbindService(connection) }
+            bound = false
+        }
+        service = null
+    }
+
+    fun onAddressChange(value: String) {
+        address = value
+    }
+
+    fun onGainChange(value: Float) {
+        gain = value
+        prefs.gain = value
+        service?.setGainFromUi(value)
+    }
+
+    fun connect() {
+        val target = address.trim()
+        prefs.address = target
+        MicService.start(getApplication(), target, gain)
+    }
+
+    fun disconnect() {
+        MicService.stop(getApplication())
+    }
+
+    fun toggleMute() {
+        service?.toggleMuteFromUi()
+    }
+
+    override fun onCleared() {
+        unbind()
+        scope.cancel()
+        super.onCleared()
+    }
+
+    private val connection = object : ServiceConnection {
+        override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
+            val svc = (binder as? MicService.LocalBinder)?.service() ?: return
+            service = svc
+            collectJob?.cancel()
+            collectJob = scope.launch {
+                svc.state.collect { _state.value = it }
+            }
+        }
+
+        override fun onServiceDisconnected(name: ComponentName?) {
+            service = null
+            _state.value = MicState(phase = MicPhase.IDLE, gain = gain)
+        }
+    }
+}

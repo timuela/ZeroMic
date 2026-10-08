@@ -1,0 +1,30 @@
+<resources>
+    <string name="app_name">ZeroMic</string>
+
+    <string name="notification_channel_name">Microphone</string>
+    <string name="notification_channel_desc">Keeps the microphone streaming while the screen is off</string>
+    <string name="notification_title">ZeroMic is streaming</string>
+    <string name="notification_text">Microphone is live</string>
+    <string name="notification_action_mute">Mute</string>
+    <string name="notification_action_unmute">Unmute</string>
+
+    <string name="host_status">PC connection</string>
+    <string name="address_label">PC address (IP:port)</string>
+    <string name="address_hint">192.168.1.10:5000</string>
+    <string name="connect">Connect</string>
+    <string name="disconnect">Disconnect</string>
+    <string name="gain">Gain</string>
+    <string name="mute">Mute</string>
+    <string name="unmute">Unmute</string>
+
+    <string name="status_idle">Not connected</string>
+    <string name="status_connecting">Connecting…</string>
+    <string name="status_connected">Connected</string>
+    <string name="status_streaming">Streaming</string>
+    <string name="status_muted">Muted</string>
+    <string name="status_error">Error</string>
+
+    <string name="error_invalid_address">Enter a valid IP:port</string>
+    <string name="error_mic_permission">Microphone permission is required</string>
+    <string name="error_notification_permission">Notification permission is required to keep streaming in the background</string>
+</resources>
