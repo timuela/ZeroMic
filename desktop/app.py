@@ -240,6 +240,7 @@ class DesktopApp:
     # actions
     # ------------------------------------------------------------------
     def _on_connect(self):
+        self._window.set_rtc_state("new")
         self._window.set_active(True)
         url = f"https://127.0.0.1:{self._port}"
         self._runner.schedule(self._session.start(url, self._current_device))
@@ -247,6 +248,7 @@ class DesktopApp:
     def _on_disconnect(self):
         self._window.set_active(False)
         self._window.set_presence(False)
+        self._window.set_rtc_state("new")
         self._runner.schedule(self._session.stop())
 
     def _on_device_changed(self, index):

@@ -37,6 +37,7 @@ class DesktopSession:
     # ------------------------------------------------------------------
     async def start(self, url, device_index):
         self._active = True
+        self._feedback.set_rtc_state("new")
         self._open_device(device_index)
         try:
             await self._signaling.connect(url)
@@ -49,6 +50,10 @@ class DesktopSession:
         await self._webrtc.close()
         await self._signaling.disconnect()
         self._audio.stop()
+        # Late callbacks from the closing peer connection are ignored now that
+        # the session is inactive, so clear the state the UI is showing.
+        self._feedback.set_rtc_state("new")
+        self._feedback.set_presence(False)
 
     def _open_device(self, device_index):
         if device_index is None:
@@ -87,18 +92,27 @@ class DesktopSession:
         self._feedback.set_link_state("connected")
 
     async def on_signaling_disconnected(self):
+        if not self._active:
+            return
         self._feedback.set_link_state("disconnected")
 
     async def on_signaling_error(self, message):
+        if not self._active:
+            return
         self._feedback.set_link_state("disconnected")
         self._feedback.report_error(f"信令连接失败: {message}")
 
     async def on_presence(self, mobile_connected):
+        if not self._active:
+            return
         self._feedback.set_presence(mobile_connected)
         if not mobile_connected:
             await self._webrtc.close()
+            self._feedback.set_rtc_state("new")
 
     async def on_offer(self, data):
+        if not self._active:
+            return
         sdp = data.get("sdp") if isinstance(data, dict) else None
         if not sdp:
             return
@@ -110,22 +124,28 @@ class DesktopSession:
         await self._signaling.emit_answer(answer)
 
     async def on_ice_candidate(self, data):
-        if not isinstance(data, dict):
+        if not self._active or not isinstance(data, dict):
             return
         await self._webrtc.add_candidate(
             data.get("candidate"), data.get("sdpMid"), data.get("sdpMLineIndex")
         )
 
     async def on_toggle_mute(self):
+        if not self._active:
+            return
         self.toggle_mute(broadcast=False)
 
     # ------------------------------------------------------------------
     # WebRTC callbacks
     # ------------------------------------------------------------------
     async def _on_local_candidate(self, candidate, sdp_mid, sdp_m_line_index):
+        if not self._active:
+            return
         if candidate is None or not self._signaling.connected:
             return
         await self._signaling.emit_candidate(candidate, sdp_mid, sdp_m_line_index)
 
     async def _on_rtc_state(self, state):
+        if not self._active:
+            return
         self._feedback.set_rtc_state(state)

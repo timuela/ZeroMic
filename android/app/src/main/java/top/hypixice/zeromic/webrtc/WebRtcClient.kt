@@ -14,6 +14,7 @@ import org.webrtc.SdpObserver
 import org.webrtc.SessionDescription
 import org.webrtc.audio.JavaAudioDeviceModule
 import java.util.concurrent.Executors
+import java.util.concurrent.RejectedExecutionException
 
 class WebRtcClient(
     context: Context,
@@ -36,13 +37,23 @@ class WebRtcClient(
     private var audioTrack: AudioTrack? = null
     private var peerConnection: PeerConnection? = null
     private var hasOffer = false
+    @Volatile private var closed = false
 
     private val candidateLock = Any()
     private var remoteDescriptionSet = false
     private val pendingRemoteCandidates = ArrayDeque<IceCandidate>()
 
+    private fun submit(block: () -> Unit) {
+        if (closed) return
+        try {
+            executor.execute { block() }
+        } catch (e: RejectedExecutionException) {
+            closed = true
+        }
+    }
+
     fun start() {
-        executor.execute {
+        submit {
             ensureFactory()
             createPeerConnection()
             createOffer(iceRestart = false)
@@ -50,16 +61,16 @@ class WebRtcClient(
     }
 
     fun setMuted(muted: Boolean) {
-        executor.execute { audioTrack?.setEnabled(!muted) }
+        submit { audioTrack?.setEnabled(!muted) }
     }
 
     fun setGain(gain: Float) {
-        executor.execute { audioTrack?.setVolume(gain.toDouble()) }
+        submit { audioTrack?.setVolume(gain.toDouble()) }
     }
 
     fun onAnswer(sdp: String) {
-        executor.execute {
-            val pc = peerConnection ?: return@execute
+        submit {
+            val pc = peerConnection ?: return@submit
             pc.setRemoteDescription(object : SimpleSdpObserver() {
                 override fun onSetSuccess() {
                     val ready = synchronized(candidateLock) {
@@ -75,8 +86,8 @@ class WebRtcClient(
     }
 
     fun addRemoteCandidate(candidate: String, sdpMid: String?, sdpMLineIndex: Int) {
-        executor.execute {
-            val pc = peerConnection ?: return@execute
+        submit {
+            val pc = peerConnection ?: return@submit
             val ice = IceCandidate(sdpMid, sdpMLineIndex, candidate)
             val applyNow = synchronized(candidateLock) {
                 if (remoteDescriptionSet) {
@@ -91,13 +102,13 @@ class WebRtcClient(
     }
 
     fun renegotiate() {
-        executor.execute {
+        submit {
             if (peerConnection != null) createOffer(iceRestart = true)
         }
     }
 
     fun stop() {
-        executor.execute {
+        submit {
             audioTrack?.setEnabled(false)
             peerConnection?.close()
             peerConnection?.dispose()
@@ -120,6 +131,7 @@ class WebRtcClient(
 
     fun shutdown() {
         stop()
+        closed = true
         executor.shutdown()
     }
 

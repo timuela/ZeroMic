@@ -43,6 +43,12 @@ class MicService : Service(), SignalingClient.Listener, WebRtcClient.Listener {
 
     @Volatile private var muted = false
 
+    // A session only exists between beginSession() and teardown(). Callbacks
+    // that arrive late (the socket reporting a disconnect, a peer connection
+    // reporting "closed") must never resurrect the state of a dead session.
+    @Volatile private var active = false
+    @Volatile private var desktopOnline = false
+
     inner class LocalBinder : Binder() {
         fun service(): MicService = this@MicService
     }
@@ -64,7 +70,7 @@ class MicService : Service(), SignalingClient.Listener, WebRtcClient.Listener {
             }
 
             ACTION_TOGGLE_MUTE -> {
-                if (signaling != null) toggleMute()
+                if (active) toggleMute()
             }
 
             else -> {
@@ -88,7 +94,7 @@ class MicService : Service(), SignalingClient.Listener, WebRtcClient.Listener {
     }
 
     fun toggleMuteFromUi() {
-        if (signaling != null) toggleMute()
+        if (active) toggleMute()
     }
 
     private fun toggleMute() {
@@ -107,6 +113,8 @@ class MicService : Service(), SignalingClient.Listener, WebRtcClient.Listener {
 
         acquireLocks()
         muted = false
+        active = true
+        desktopOnline = false
         _state.value = MicState(phase = MicPhase.CONNECTING, gain = gain)
 
         val (host, port) = parsed
@@ -114,6 +122,8 @@ class MicService : Service(), SignalingClient.Listener, WebRtcClient.Listener {
     }
 
     private fun teardown() {
+        active = false
+        desktopOnline = false
         signaling?.disconnect()
         signaling = null
         webRtc?.shutdown()
@@ -123,48 +133,80 @@ class MicService : Service(), SignalingClient.Listener, WebRtcClient.Listener {
         _state.value = MicState(phase = MicPhase.IDLE)
     }
 
+    private fun startWebRtc() {
+        webRtc?.shutdown()
+        val client = WebRtcClient(applicationContext, this)
+        webRtc = client
+        // start() queues the track creation first, so gain and mute must be
+        // queued after it or they would apply to a track that does not exist.
+        client.start()
+        client.setGain(_state.value.gain)
+        client.setMuted(muted)
+    }
+
     override fun onSignalingConnected() {
+        if (!active) return
+        // Our own join makes the server rebroadcast presence, so forget the
+        // previous answer and let that decide whether to (re)start WebRTC.
+        desktopOnline = false
         signaling?.join()
-        val current = webRtc
-        if (current == null) {
-            val client = WebRtcClient(applicationContext, this)
-            webRtc = client
-            client.setGain(_state.value.gain)
-            client.start()
-        } else {
-            current.renegotiate()
-        }
     }
 
     override fun onSignalingDisconnected(reason: String?) {
-        if (signaling != null) {
+        if (!active) return
+        _state.value = _state.value.copy(phase = MicPhase.CONNECTING)
+    }
+
+    override fun onPresence(online: Boolean) {
+        if (!active) return
+
+        val wasOnline = desktopOnline
+        desktopOnline = online
+
+        if (!online) {
+            // Host went away. Drop the peer connection so that when it comes
+            // back we negotiate a completely fresh session.
+            webRtc?.shutdown()
+            webRtc = null
             _state.value = _state.value.copy(phase = MicPhase.CONNECTING)
+            return
+        }
+
+        // Host appeared, or came back after being away: send a fresh offer.
+        if (!wasOnline || webRtc == null) {
+            startWebRtc()
         }
     }
 
     override fun onPeerReady() {}
 
     override fun onAnswer(answerSdp: String) {
+        if (!active) return
         webRtc?.onAnswer(answerSdp)
     }
 
     override fun onRemoteCandidate(candidate: String, sdpMid: String?, sdpMLineIndex: Int) {
+        if (!active) return
         webRtc?.addRemoteCandidate(candidate, sdpMid, sdpMLineIndex)
     }
 
     override fun onToggleMute() {
+        if (!active) return
         toggleMute()
     }
 
     override fun onLocalSdp(sdp: String) {
+        if (!active) return
         signaling?.sendOffer(sdp)
     }
 
     override fun onLocalCandidate(candidate: String, sdpMid: String?, sdpMLineIndex: Int) {
+        if (!active) return
         signaling?.sendCandidate(candidate, sdpMid, sdpMLineIndex)
     }
 
     override fun onRtcState(state: WebRtcClient.State) {
+        if (!active) return
         val phase = when (state) {
             WebRtcClient.State.CONNECTED -> MicPhase.STREAMING
             WebRtcClient.State.CONNECTING,

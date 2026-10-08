@@ -94,12 +94,13 @@ class WebRtcReceiver:
 
         @pc.on("track")
         def on_track(track):
-            if track.kind == "audio":
-                self._pump_task = loop.create_task(self._pump(track))
+            if track.kind != "audio" or pc is not self._pc:
+                return
+            self._pump_task = loop.create_task(self._pump(track))
 
         @pc.on("icecandidate")
         def on_icecandidate(candidate):
-            if candidate is None or self._on_ice is None:
+            if candidate is None or self._on_ice is None or pc is not self._pc:
                 return
             loop.create_task(
                 self._on_ice(
@@ -111,8 +112,12 @@ class WebRtcReceiver:
 
         @pc.on("connectionstatechange")
         def on_connectionstatechange():
-            if self._on_state is not None:
-                loop.create_task(self._on_state(pc.connectionState))
+            # Ignore events from a peer connection we have already replaced or
+            # closed. Without this, tearing the call down flips the UI to
+            # "closed"/"failed" and it stays red when the phone comes back.
+            if pc is not self._pc or self._on_state is None:
+                return
+            loop.create_task(self._on_state(pc.connectionState))
 
         await pc.setRemoteDescription(RTCSessionDescription(sdp=offer_sdp, type="offer"))
         answer = await pc.createAnswer()

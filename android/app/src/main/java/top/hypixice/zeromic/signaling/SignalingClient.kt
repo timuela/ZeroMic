@@ -24,6 +24,7 @@ class SignalingClient(
         fun onRemoteCandidate(candidate: String, sdpMid: String?, sdpMLineIndex: Int)
         fun onPeerReady()
         fun onToggleMute()
+        fun onPresence(desktopOnline: Boolean)
     }
 
     private var socket: Socket? = null
@@ -71,6 +72,12 @@ class SignalingClient(
         }
         s.on("toggle_mute") { _ ->
             listener.onToggleMute()
+        }
+        s.on("presence") { args ->
+            val obj = args.firstOrNull() as? JSONObject
+            if (obj != null) {
+                listener.onPresence(obj.optBoolean("desktop", false))
+            }
         }
 
         socket = s
