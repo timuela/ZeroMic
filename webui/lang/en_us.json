@@ -64,5 +64,7 @@
   "status_offline": "Not connected to service",
   "host_port": "Port",
   "host_apply": "Apply",
-  "host_port_failed": "Could not use that port"
+  "host_port_failed": "Could not use that port",
+  "host_copy": "Copy",
+  "host_copied": "Copied"
 }

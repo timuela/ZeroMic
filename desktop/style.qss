@@ -61,6 +61,20 @@ QLabel {
     border-color: #4285F4;
 }
 
+#copyButton {
+    background-color: #1e1e1e;
+    border: 1px solid #333333;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 12px;
+    color: #cccccc;
+}
+
+#copyButton:hover {
+    border-color: #4285F4;
+    color: #ffffff;
+}
+
 #addressButtonSelected {
     border-color: #4285F4;
     background-color: #14243d;

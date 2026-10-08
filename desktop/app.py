@@ -437,6 +437,16 @@ def run_desktop(platform, version, webui_dir, icon_path=None, server=None):
     app.setApplicationName("ZeroMic")
     app.setQuitOnLastWindowClosed(False)
 
+    # Without an explicit AppUserModelID Windows groups the window under the
+    # bootloader process and shows a generic taskbar icon.
+    if sys.platform == "win32":
+        try:
+            import ctypes
+
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("ZeroMic.Host")
+        except Exception:
+            pass
+
     if icon_path:
         icon = QIcon(icon_path)
         if not icon.isNull():

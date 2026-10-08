@@ -13,12 +13,25 @@ android {
         minSdk = 26
         targetSdk = 35
         versionCode = (findProperty("versionCode") as String?)?.toIntOrNull() ?: 1
-        versionName = (findProperty("versionName") as String?) ?: "0.1.2"
+        versionName = (findProperty("versionName") as String?) ?: "0.1.3"
+    }
+
+    signingConfigs {
+        create("zeromic") {
+            storeFile = file("keystore/zeromic-test.jks")
+            storePassword = "zeromic"
+            keyAlias = "zeromic"
+            keyPassword = "zeromic"
+        }
     }
 
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("zeromic")
+        }
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("zeromic")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -37,6 +50,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     packaging {

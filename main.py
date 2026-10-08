@@ -18,7 +18,7 @@ else:
     base_path = os.path.dirname(os.path.abspath(__file__))
 
 # 常量
-VERSION = "v0.1.2"
+VERSION = "v0.1.3"
 DEFAULT_PORT = 5000
 
 # 单实例检测
@@ -345,8 +345,8 @@ if __name__ == '__main__':
         sys.exit(1)
 
     icon_path = None
-    for icon_name in ('icon.ico', 'icon.png', 'icon.icns'):
-        candidate = os.path.join(base_path, icon_name)
+    for icon_rel in ('desktop/icon.png', 'icon.png', 'icon.ico', 'icon.icns'):
+        candidate = os.path.join(base_path, *icon_rel.split('/'))
         if os.path.exists(candidate):
             icon_path = candidate
             break

@@ -60,6 +60,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import top.hypixice.zeromic.BuildConfig
 import top.hypixice.zeromic.MicPhase
 import top.hypixice.zeromic.MicState
 import top.hypixice.zeromic.R
@@ -131,6 +132,12 @@ fun MicScreen(viewModel: MicViewModel) {
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onBackground
+                )
+                Spacer(Modifier.size(6.dp))
+                Text(
+                    text = BuildConfig.VERSION_NAME,
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 

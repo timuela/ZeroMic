@@ -5,6 +5,7 @@ import sys
 from PySide6.QtCore import QPointF, QSize, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QPainter, QPixmap
 from PySide6.QtWidgets import (
+    QApplication,
     QComboBox,
     QFrame,
     QHBoxLayout,
@@ -215,6 +216,7 @@ class MainWindow(QMainWindow):
     def _build(self):
         self.setWindowTitle("ZeroMic Desktop")
         self.resize(420, 820)
+        self.setWindowIcon(QApplication.applicationIcon())
 
         central = QWidget()
         central.setObjectName("centralWidget")
@@ -300,6 +302,7 @@ class MainWindow(QMainWindow):
         self._address_box = QVBoxLayout()
         self._address_box.setSpacing(4)
         self._address_buttons = []
+        self._copy_buttons = []
         self._selected_address = None
         tutorial.addLayout(self._address_box)
 
@@ -413,6 +416,8 @@ class MainWindow(QMainWindow):
         self._tutorial_warn.setText(
             self._t("tutorial_warn", "The \u201cNot Secure\u201d warning is normal.")
         )
+        for button in self._copy_buttons:
+            button.setText(self._t("host_copy", "Copy"))
         self.set_active(self._active)
         self._refresh_status()
 
@@ -446,18 +451,55 @@ class MainWindow(QMainWindow):
             widget = item.widget()
             if widget is not None:
                 widget.deleteLater()
+            nested = item.layout()
+            if nested is not None:
+                while nested.count():
+                    sub_item = nested.takeAt(0)
+                    sub_widget = sub_item.widget()
+                    if sub_widget is not None:
+                        sub_widget.deleteLater()
 
         self._address_buttons = []
+        self._copy_buttons = []
+
         for url in addresses:
+            row = QHBoxLayout()
+            row.setSpacing(6)
+
             button = QPushButton(url)
             button.setObjectName("addressButton")
             button.setCursor(Qt.PointingHandCursor)
             button.clicked.connect(lambda _=False, target=url: self.addressSelected.emit(target))
-            self._address_box.addWidget(button)
+            row.addWidget(button, 1)
+
+            copy_button = QPushButton(self._t("host_copy", "Copy"))
+            copy_button.setObjectName("copyButton")
+            copy_button.setCursor(Qt.PointingHandCursor)
+            copy_button.clicked.connect(
+                lambda _=False, target=url, btn=copy_button: self._copy_address(target, btn)
+            )
+            row.addWidget(copy_button, 0)
+
+            self._address_box.addLayout(row)
             self._address_buttons.append(button)
+            self._copy_buttons.append(copy_button)
 
         if addresses:
             self.addressSelected.emit(addresses[0])
+
+    def _copy_address(self, url, button):
+        clipboard = QApplication.clipboard()
+        if clipboard is not None:
+            clipboard.setText(url)
+        button.setText(self._t("host_copied", "Copied"))
+        QTimer.singleShot(1200, lambda: self._reset_copy_button(button))
+
+    def _reset_copy_button(self, button):
+        # The row may have been rebuilt while the timer was pending.
+        try:
+            button.setText(self._t("host_copy", "Copy"))
+        except RuntimeError:
+            pass
 
     def set_selected_address(self, url):
         self._selected_address = url

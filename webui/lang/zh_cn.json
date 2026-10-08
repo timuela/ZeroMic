@@ -66,5 +66,7 @@
   "status_offline": "未连接到服务",
   "host_port": "端口",
   "host_apply": "应用",
-  "host_port_failed": "无法使用该端口"
+  "host_port_failed": "无法使用该端口",
+  "host_copy": "复制",
+  "host_copied": "已复制"
 }

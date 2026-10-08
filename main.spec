@@ -12,6 +12,7 @@ base_datas = [
     ('desktop/style.qss', 'desktop'),
     ('desktop/icon-volume-off.png', 'desktop'),
     ('desktop/icon-volume-up.png', 'desktop'),
+    ('desktop/icon.png', 'desktop'),
     ('icon.ico', '.'),
 ]
 if sys.platform == 'win32':

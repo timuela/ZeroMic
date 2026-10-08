@@ -140,14 +140,6 @@ jobs:
         with:
           gradle-version: '8.11.1'
 
-      # Keep one debug signing key across runs, otherwise each build gets a new
-      # signature and the APK cannot upgrade an existing install.
-      - name: Cache debug keystore
-        uses: actions/cache@v4
-        with:
-          path: ~/.android/debug.keystore
-          key: zeromic-debug-keystore-v1
-
       - name: Get Version String
         id: version
         shell: bash
@@ -156,16 +148,18 @@ jobs:
           RAW="${{ github.event.inputs.version || github.ref_name }}"
           echo "version=${RAW#v}" >> $GITHUB_OUTPUT
 
+      # Signed with the checked-in test key, so every build shares one
+      # signature and a new APK can upgrade an existing install.
       - name: Build client APK
         run: |
-          gradle assembleDebug --no-daemon --stacktrace \
+          gradle assembleRelease --no-daemon --stacktrace \
             -PversionName=${{ steps.version.outputs.version }} \
             -PversionCode=${{ github.run_number }}
 
       - name: Rename APK
         run: |
           mkdir -p ../dist
-          cp app/build/outputs/apk/debug/app-debug.apk \
+          cp app/build/outputs/apk/release/app-release.apk \
              "../dist/ZeroMic-Client-${{ steps.version.outputs.version }}.apk"
 
       - name: Upload Client build
