@@ -18,7 +18,9 @@ android {
 
     signingConfigs {
         create("zeromic") {
-            storeFile = file("keystore/zeromic-test.jks")
+            // rootProject, not file(): inside the app module "keystore/..."
+            // would resolve to android/app/keystore, which does not exist.
+            storeFile = rootProject.file("keystore/zeromic-test.jks")
             storePassword = "zeromic"
             keyAlias = "zeromic"
             keyPassword = "zeromic"
