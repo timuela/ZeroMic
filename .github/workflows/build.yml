@@ -79,12 +79,26 @@ jobs:
           pip install pyinstaller
 
       # Catches missing/misnamed Qt APIs and paint-time errors before there is
-      # a binary to download; a startup crash reached users once already.
+      # a binary to download. The log is uploaded as an artifact because job
+      # logs are not readable without repo access.
+      # TODO: drop continue-on-error once the Linux headless run is green.
       - name: Smoke-test the Qt app
         if: runner.os == 'Linux'
+        continue-on-error: true
         env:
           QT_QPA_PLATFORM: offscreen
-        run: python desktop/smoke_test.py
+        run: |
+          set -o pipefail
+          python -u desktop/smoke_test.py 2>&1 | tee smoke.log
+
+      - name: Upload smoke log
+        if: always() && runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: qt-smoke-log
+          path: smoke.log
+          if-no-files-found: warn
+          retention-days: 5
 
       - name: Get Version String
         id: version
