@@ -18,8 +18,66 @@ else:
     base_path = os.path.dirname(os.path.abspath(__file__))
 
 # 常量
-VERSION = "v0.0.8"
+VERSION = "v0.0.9"
 DEFAULT_PORT = 5000
+
+# 单实例检测
+MUTEX_NAME = r'Local\ZeroMicSingleInstance'
+LOCK_FILENAME = 'zeromic.lock'
+ERROR_ALREADY_EXISTS = 183
+_instance_lock = None
+
+
+def acquire_instance_lock():
+    """尝试成为唯一运行实例。
+
+    返回 True 表示可以继续启动，False 表示已经有一个实例在运行。
+    检测本身出错时不会阻止启动。
+    """
+    global _instance_lock
+    try:
+        if sys.platform == 'win32':
+            import ctypes
+            from ctypes import wintypes
+
+            kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
+            kernel32.CreateMutexW.restype = wintypes.HANDLE
+            handle = kernel32.CreateMutexW(None, False, MUTEX_NAME)
+            if not handle:
+                return True
+            if ctypes.get_last_error() == ERROR_ALREADY_EXISTS:
+                kernel32.CloseHandle(handle)
+                return False
+            _instance_lock = handle
+            return True
+
+        import fcntl
+        import tempfile
+
+        path = os.path.join(tempfile.gettempdir(), LOCK_FILENAME)
+        handle = open(path, 'w')
+        try:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            handle.close()
+            return False
+        _instance_lock = handle
+        return True
+    except Exception:
+        return True
+
+
+def notify_already_running():
+    message = 'ZeroMic 已在运行中，请勿重复启动。\n\nZeroMic is already running.'
+    if sys.platform == 'win32':
+        try:
+            import ctypes
+            ctypes.windll.user32.MessageBoxW(None, message, 'ZeroMic', 0x00000040)
+            return
+        except Exception:
+            pass
+    print(f'[ZeroMic] {message}')
+
 
 def get_available_port(start_port, max_port=5100):
     for port in range(start_port, max_port + 1):
@@ -208,6 +266,10 @@ def start_flask():
 
 
 if __name__ == '__main__':
+    if not acquire_instance_lock():
+        notify_already_running()
+        sys.exit(0)
+
     # 启动 Flask 线程
     flask_thread = threading.Thread(target=start_flask, daemon=True)
     flask_thread.start()

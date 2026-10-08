@@ -133,7 +133,7 @@
         </button>
         
         <h1><mdui-icon name="podcasts" style="font-size: 20px; margin-right: 10px; color: rgb(var(--mdui-color-primary));"></mdui-icon>ZeroMic</h1>
-        <p>Client Mode | v0.0.3 | by：Hypixice</p>
+        <p>Client Mode | <span id="app-version">&mdash;</span> | by：Hypixice</p>
     </div>
 
     <div class="status-card">
@@ -268,8 +268,22 @@ const socket = io(window.location.origin);
     }
 
 
+    // 版本号从服务器读取，不写死在页面里
+    async function syncAppInfo() {
+        try {
+            const response = await fetch(`/api/info?t=${new Date().getTime()}`);
+            if (!response.ok) return;
+            const data = await response.json();
+            const label = document.getElementById('app-version');
+            if (label && data.version) label.innerText = data.version;
+        } catch (error) {
+            console.error('获取版本信息失败:', error);
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', async () => {
             await loadLanguage(currentLang);
+            syncAppInfo();
         });
 
     document.addEventListener('visibilitychange', async () => {
