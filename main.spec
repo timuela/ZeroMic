@@ -1,20 +1,40 @@
 # -*- mode: python ; coding: utf-8 -*-
 import os
+import sys
+
+from PyInstaller.utils.hooks import collect_all, collect_data_files
 
 # 从环境变量获取架构，默认为空（让系统自动决定）
 target_arch = os.environ.get('TARGET_ARCH', None)
-import sys
 
-base_datas = [('webui', 'webui'), ('icon.ico', '.')]
+base_datas = [('webui', 'webui'), ('desktop/style.qss', 'desktop'), ('icon.ico', '.')]
 if sys.platform == 'win32':
     base_datas.append(('drivers/vbcable.zip', 'drivers'))
+
+datas, binaries, hiddenimports = [], [], []
+
+# 原生扩展与随包资源（FFmpeg / PortAudio / SRTP）
+for package in ('aiortc', 'av', 'sounddevice', 'pylibsrtp', 'aioice', 'google_crc32c', 'pyee'):
+    package_datas, package_binaries, package_hidden = collect_all(package)
+    datas += package_datas
+    binaries += package_binaries
+    hiddenimports += package_hidden
+
+datas += collect_data_files('segno')
+
+hiddenimports += [
+    'engineio.async_drivers.threading',
+    'engineio.async_drivers.aiohttp',
+    'aiohttp',
+    'numpy',
+]
 
 a = Analysis(
     ['main.py'],
     pathex=[],
-    binaries=[],
-    datas=base_datas,  # 包含前端资源和驱动
-    hiddenimports=['engineio.async_drivers.threading', 'pystray', 'PIL'],
+    binaries=binaries,
+    datas=base_datas + datas,  # 包含前端资源、样式和驱动
+    hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -33,13 +53,13 @@ exe = EXE(
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,
+    upx=False,  # Qt / FFmpeg 动态库与 UPX 压缩不兼容
     upx_exclude=[],
     runtime_tmpdir=None,
     console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
-    target_arch=target_arch, # 注入架构变量
+    target_arch=target_arch,  # 注入架构变量
     codesign_identity=None,
     entitlements_file=None,
     icon='icon.ico',

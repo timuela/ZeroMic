@@ -1,0 +1,131 @@
+import logging
+
+from desktop.audio import AudioOutput
+from desktop.signaling import SignalingClient
+from desktop.webrtc import WebRtcReceiver
+
+log = logging.getLogger(__name__)
+
+
+class DesktopSession:
+    """Owns the signalling client, the WebRTC receiver and the audio output.
+
+    Every method that touches WebRTC or the network must run on the asyncio
+    thread. Commands arriving from Qt are scheduled onto it by the app.
+    """
+
+    def __init__(self, feedback, platform):
+        self._feedback = feedback
+        self._platform = platform
+        self._audio = AudioOutput()
+        self._webrtc = WebRtcReceiver(
+            on_pcm=self._audio.push,
+            on_ice=self._on_local_candidate,
+            on_state=self._on_rtc_state,
+        )
+        self._signaling = SignalingClient(self)
+        self._schedule = None
+        self._muted = False
+        self._active = False
+
+    def set_scheduler(self, schedule):
+        """Provide a callable(coro) that schedules work on the asyncio loop."""
+        self._schedule = schedule
+
+    # ------------------------------------------------------------------
+    # lifecycle
+    # ------------------------------------------------------------------
+    async def start(self, url, device_index):
+        self._active = True
+        self._open_device(device_index)
+        try:
+            await self._signaling.connect(url)
+        except Exception as exc:
+            self._active = False
+            self._feedback.report_error(f"无法连接到服务器: {exc}")
+
+    async def stop(self):
+        self._active = False
+        await self._webrtc.close()
+        await self._signaling.disconnect()
+        self._audio.stop()
+
+    def _open_device(self, device_index):
+        if device_index is None:
+            return
+        try:
+            self._audio.start(device_index)
+        except Exception as exc:
+            self._feedback.report_error(f"无法打开音频输出设备: {exc}")
+
+    # ------------------------------------------------------------------
+    # commands from the UI / tray
+    # ------------------------------------------------------------------
+    def select_device(self, device_index):
+        if self._active:
+            self._open_device(device_index)
+
+    def set_gain(self, gain):
+        self._audio.set_gain(gain)
+
+    def level(self):
+        return self._audio.level
+
+    def toggle_mute(self, broadcast=True):
+        self._muted = not self._muted
+        self._audio.set_muted(self._muted)
+        self._feedback.set_muted(self._muted)
+
+        # Tell the phone to follow, but never echo back to ourselves.
+        if broadcast and self._signaling.connected and self._schedule is not None:
+            self._schedule(self._signaling.emit_toggle_mute())
+
+    # ------------------------------------------------------------------
+    # signalling callbacks
+    # ------------------------------------------------------------------
+    async def on_signaling_connected(self):
+        self._feedback.set_link_state("connected")
+
+    async def on_signaling_disconnected(self):
+        self._feedback.set_link_state("disconnected")
+
+    async def on_signaling_error(self, message):
+        self._feedback.set_link_state("disconnected")
+        self._feedback.report_error(f"信令连接失败: {message}")
+
+    async def on_presence(self, mobile_connected):
+        self._feedback.set_presence(mobile_connected)
+        if not mobile_connected:
+            await self._webrtc.close()
+
+    async def on_offer(self, data):
+        sdp = data.get("sdp") if isinstance(data, dict) else None
+        if not sdp:
+            return
+        try:
+            answer = await self._webrtc.handle_offer(sdp)
+        except Exception as exc:
+            self._feedback.report_error(f"WebRTC 协商失败: {exc}")
+            return
+        await self._signaling.emit_answer(answer)
+
+    async def on_ice_candidate(self, data):
+        if not isinstance(data, dict):
+            return
+        await self._webrtc.add_candidate(
+            data.get("candidate"), data.get("sdpMid"), data.get("sdpMLineIndex")
+        )
+
+    async def on_toggle_mute(self):
+        self.toggle_mute(broadcast=False)
+
+    # ------------------------------------------------------------------
+    # WebRTC callbacks
+    # ------------------------------------------------------------------
+    async def _on_local_candidate(self, candidate, sdp_mid, sdp_m_line_index):
+        if candidate is None or not self._signaling.connected:
+            return
+        await self._signaling.emit_candidate(candidate, sdp_mid, sdp_m_line_index)
+
+    async def _on_rtc_state(self, state):
+        self._feedback.set_rtc_state(state)

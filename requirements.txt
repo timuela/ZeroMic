@@ -1,11 +1,24 @@
-# Web 框架与通信层（全平台通用）
+# 需要 Python 3.11 / 3.12 / 3.13（PySide6 暂不支持 3.14）
+
+# Web 框架与信令服务器（手机浏览器 / 安卓客户端连接）
 Flask==3.0.3
 Flask-SocketIO==5.3.6
 
-# 桌面 GUI 容器（跨平台）
-# 注意：pywebview 最高支持 Python 3.13。Python 3.14 用户请先用浏览器直接访问，
-# 或降级到 Python 3.12/3.13 以使用桌面窗口功能。
-pywebview>=5.1
+# 桌面端作为信令客户端（asyncio + aiohttp 传输）
+python-socketio[asyncio_client]>=5.11.0
+
+# 原生桌面界面
+PySide6>=6.7.0
+
+# WebRTC 音频接收（桌面端作为 answerer）
+aiortc>=1.9.0
+
+# 系统音频输出（写入虚拟声卡）
+sounddevice>=0.4.6
+numpy>=1.24
+
+# 二维码生成（纯 Python，无需 Pillow）
+segno>=1.6.1
 
 # HTTPS 证书动态生成（全平台通用）
 pyOpenSSL>=24.1.0
@@ -13,5 +26,3 @@ cryptography>=42.0.5
 
 # 打包工具
 pyinstaller>=6.15.0
-
-# 注意：comtypes 仅 Windows 需要，请用 requirements-windows.txt 安装

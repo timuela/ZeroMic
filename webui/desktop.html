@@ -379,17 +379,63 @@
         if (speakerBtn) speakerBtn.click();
     });
 
-    socket.on('ready', (data) => {
-        if (data.role === 'mobile') {
-            isConnected = true;
-            connDot.classList.replace('disconnected', 'connected');
+    function setMobileConnected(connected) {
+        isConnected = connected;
+        if (connected) {
+            connDot.classList.remove('disconnected');
+            connDot.classList.add('connected');
             connText.innerText = t('status_connected');
             connText.style.color = '#4CAF50';
-            
+
             // 手机连上后：隐藏教程，显示主控区
             document.getElementById('tutorial-card').style.display = 'none';
             document.getElementById('main-control-area').style.display = 'flex';
+        } else {
+            connDot.classList.remove('connected');
+            connDot.classList.add('disconnected');
+            connText.innerText = t('status_wait');
+            connText.style.color = '';
+
+            // 手机断开后：回到教程界面并清理音频管线
+            document.getElementById('main-control-area').style.display = 'none';
+            document.getElementById('tutorial-card').style.display = '';
+            resetPeer();
         }
+    }
+
+    function resetPeer() {
+        isPlaying = false;
+        try {
+            if (peerConnection) { peerConnection.close(); peerConnection = null; }
+        } catch (e) {}
+        try {
+            if (globalAudioElement) {
+                globalAudioElement.pause();
+                globalAudioElement.srcObject = null;
+                globalAudioElement = null;
+            }
+        } catch (e) {}
+        try {
+            if (audioContext) { audioContext.close(); }
+        } catch (e) {}
+        audioContext = null;
+        gainNode = null;
+        analyser = null;
+        dataArray = null;
+        speakerBtn.className = 'speaker-button initial';
+        speakerRing.className = 'volume-ring initial';
+        speakerIcon.setAttribute('name', 'volume_off');
+        statusLabel.innerText = t('state_wait_stream');
+        statusLabel.style.color = 'var(--color-initial)';
+    }
+
+    // 服务器广播的权威在线状态（连接/断开都会推送）
+    socket.on('presence', (data) => {
+        setMobileConnected(!!(data && data.mobile));
+    });
+
+    socket.on('ready', (data) => {
+        if (data.role === 'mobile') setMobileConnected(true);
     });
 
     // === 3. (修复点) WebRTC 音频接收逻辑 ===

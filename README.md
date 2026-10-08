@@ -63,6 +63,19 @@ Powered by **WebRTC P2P technology**, audio data is streamed directly within you
 6. In your game or voice chat software, set the **Microphone Input Device** to the virtual device created by ZeroMic.
 7. Start talking!
 
+## 🖥️ Desktop Client
+
+The PC side is a **native Qt application** (PySide6), not a web page. It hosts the local
+HTTPS / Socket.IO signalling server, answers the WebRTC call with `aiortc`, and writes the decoded
+audio straight into the virtual cable through `sounddevice`. No WebView2, no browser involved.
+
+- Native window + system tray (show / mute / exit).
+- `aiortc` as the WebRTC answerer; host-candidate ICE only, so it connects instantly on the LAN.
+- Auto-matches the virtual device (`CABLE Input` / `zeromic_sink` / `BlackHole`).
+- Live gain slider and mute that act on the audio callback, so they respond instantly.
+
+> **Building requires Python 3.11–3.13.** PySide6 does not support 3.14 yet.
+
 ## 📱 Native Android Client
 
 The browser client works, but Android browsers (Chrome, Brave, etc.) suspend the page when the

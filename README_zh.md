@@ -65,6 +65,19 @@
 6. 在游戏或语音软件的设置中，将 **麦克风输入设备** 更改为软件提示的虚拟设备名称。
 7. 开始说话吧！
 
+## 🖥️ 电脑端客户端
+
+电脑端已经是一个**原生 Qt 应用**（PySide6），不再是网页。它在本机运行 HTTPS / Socket.IO 信令服务，
+用 `aiortc` 作为 WebRTC 的 answerer 接听，并通过 `sounddevice` 把解码后的音频直接写入虚拟声卡。
+不再需要 WebView2，也不再依赖浏览器。
+
+- 原生窗口 + 系统托盘（显示 / 静音 / 退出）。
+- 由 `aiortc` 负责 WebRTC 接听；仅使用局域网宿主候选（host candidate），秒连。
+- 自动匹配虚拟设备（`CABLE Input` / `zeromic_sink` / `BlackHole`）。
+- 音量与静音直接作用于音频回调，响应即时。
+
+> **构建需要 Python 3.11–3.13。** PySide6 目前尚不支持 3.14。
+
 ## 📱 原生 Android 客户端
 
 浏览器客户端可用，但 Android 浏览器（Chrome、Brave 等）在息屏后会挂起页面，导致麦克风流被中断。

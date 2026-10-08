@@ -8,30 +8,12 @@ from .base import BasePlatform
 
 class WindowsPlatform(BasePlatform):
     @property
-    def use_system_browser(self) -> bool:
-        """Windows 下默认使用 pywebview 内嵌窗口"""
-        return False
-
-    @property
-    def gui_backend(self) -> str:
-        return 'edgechromium'
-
-    @property
     def driver_display_name(self) -> str:
         return 'CABLE Output (VB-Audio Virtual Cable)'
 
     @property
     def driver_match_keyword(self) -> str:
         return 'cable input'
-
-    def get_webview_env(self) -> dict[str, str]:
-        return {
-            'WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS': (
-                '--ignore-certificate-errors '
-                '--use-fake-ui-for-media-stream '
-                '--autoplay-policy=no-user-gesture-required'
-            ),
-        }
 
     def is_admin(self) -> bool:
         try:

@@ -18,7 +18,7 @@ else:
     base_path = os.path.dirname(os.path.abspath(__file__))
 
 # 常量
-VERSION = "v0.0.4"
+VERSION = "v0.0.5"
 DEFAULT_PORT = 5000
 
 def get_available_port(start_port, max_port=5100):
@@ -35,10 +35,6 @@ SERVER_PORT = get_available_port(DEFAULT_PORT)
 
 # 平台检测
 platform = get_platform()
-
-# WebView2 环境变量（仅 Windows 需要）
-for k, v in platform.get_webview_env().items():
-    os.environ[k] = v
 
 # ==========================================
 # 1. Flask & SocketIO 初始化
@@ -146,11 +142,36 @@ def api_sync_mute():
 # ==========================================
 # 3. WebRTC 信令服务器 (Socket.IO)
 # ==========================================
+clients = {}  # sid -> role
+
+
+def _presence_payload():
+    roles = set(clients.values())
+    return {
+        'mobile': 'mobile' in roles,
+        'desktop': 'desktop' in roles,
+    }
+
+
+def _broadcast_presence():
+    socketio.emit('presence', _presence_payload())
+
+
 @socketio.on('join')
 def on_join(data):
-    role = data.get('role', 'unknown')
-    print(f"[{role}] 已连接到信令服务器")
+    role = data.get('role', 'unknown') if isinstance(data, dict) else 'unknown'
+    clients[request.sid] = role
+    print(f"[{role}] 已连接到信令服务器 (sid={request.sid})")
     emit('ready', {'role': role}, broadcast=True, include_self=False)
+    _broadcast_presence()
+
+
+@socketio.on('disconnect')
+def on_disconnect():
+    role = clients.pop(request.sid, None)
+    if role is not None:
+        print(f"[{role}] 已断开连接 (sid={request.sid})")
+        _broadcast_presence()
 
 
 @socketio.on('offer')
@@ -166,6 +187,11 @@ def on_answer(data):
 @socketio.on('ice_candidate')
 def on_ice_candidate(data):
     emit('ice_candidate', data, broadcast=True, include_self=False)
+
+
+@socketio.on('toggle_mute')
+def on_toggle_mute():
+    emit('toggle_mute', broadcast=True, include_self=False)
 
 
 # ==========================================
@@ -189,124 +215,19 @@ if __name__ == '__main__':
     # 给 Flask 一点时间启动
     time.sleep(1.5)
 
-    desktop_url = f'https://127.0.0.1:{SERVER_PORT}/desktop'
+    icon_ext = 'ico' if sys.platform == 'win32' else 'png'
+    icon_path = os.path.join(base_path, f'icon.{icon_ext}')
+    if not os.path.exists(icon_path):
+        icon_path = None
 
-    if platform.use_system_browser:
-        import webbrowser
-        print(f"[ZeroMic] 桌面页面已用系统浏览器打开: {desktop_url}")
-        webbrowser.open(desktop_url)
-        # 主线程保持存活
-        try:
-            while True:
-                time.sleep(1)
-        except KeyboardInterrupt:
-            pass
-    else:
-        import webview
-        icon_ext = 'ico' if sys.platform == 'win32' else 'png'
-        icon_path = os.path.join(base_path, f'icon.{icon_ext}')
-        if not os.path.exists(icon_path):
-            icon_path = ''
+    from desktop.app import run_desktop
 
-        window = webview.create_window(
-            title='ZeroMic Desktop',
-            url=desktop_url,
-            width=380,
-            height=740,
-            resizable=False,
-            frameless=False,
-            easy_drag=False,
-            background_color='#121212'
-        )
-
-        if sys.platform == 'win32':
-            import pystray
-            from PIL import Image
-
-            tray_strings = {"show": "Show Window", "exit": "Exit ZeroMic", "mute": "Mute", "unmute": "Unmute"}
-
-            def force_update_tray():
-                if 'tray_icon' in globals() or 'tray_icon' in locals() or 'tray_icon' in sys.modules[__name__].__dict__:
-                    try:
-                        tray_icon.update_menu()
-                    except Exception:
-                        pass
-                        
-            tray_force_update_callback = force_update_tray
-
-            def update_tray_strings(lang_code):
-                try:
-                    import json
-                    lang_file = os.path.join(WEBUI_DIR, 'lang', f'{lang_code}.json')
-                    if not os.path.exists(lang_file):
-                        lang_prefix = lang_code.split('_')[0]
-                        for f in os.listdir(os.path.join(WEBUI_DIR, 'lang')):
-                            if f.startswith(lang_prefix):
-                                lang_file = os.path.join(WEBUI_DIR, 'lang', f)
-                                break
-                    if os.path.exists(lang_file):
-                        with open(lang_file, 'r', encoding='utf-8') as f:
-                            data = json.load(f)
-                            tray_strings["show"] = data.get('tray_show', tray_strings["show"])
-                            tray_strings["exit"] = data.get('tray_exit', tray_strings["exit"])
-                            tray_strings["mute"] = data.get('tray_mute', tray_strings["mute"])
-                            tray_strings["unmute"] = data.get('tray_unmute', tray_strings["unmute"])
-                    force_update_tray()
-                except Exception:
-                    pass
-
-            tray_update_callback = update_tray_strings
-
-            # 初始化读取当前系统语言
-            try:
-                import ctypes
-                import locale
-                windll = ctypes.windll.kernel32
-                default_lang_code = locale.windows_locale.get(windll.GetUserDefaultUILanguage())
-                default_lang_code = default_lang_code.lower() if default_lang_code else 'en_us'
-                update_tray_strings(default_lang_code)
-            except Exception:
-                pass
-
-            def create_tray():
-                image = Image.open(icon_path) if icon_path else Image.new('RGB', (64, 64), color='black')
-                
-                def on_show(icon, item):
-                    window.show()
-                    window.restore()
-                
-                def on_exit(icon, item):
-                    icon.stop()
-                    window.destroy()
-                    
-                def on_mute_toggle(icon, item):
-                    socketio.emit('toggle_mute')
-
-                menu = pystray.Menu(
-                    pystray.MenuItem(lambda item: tray_strings["show"], on_show, default=True),
-                    pystray.MenuItem(lambda item: tray_strings["unmute"] if is_muted else tray_strings["mute"], on_mute_toggle),
-                    pystray.MenuItem(lambda item: tray_strings["exit"], on_exit)
-                )
-                
-                icon = pystray.Icon('ZeroMic', image, 'ZeroMic', menu)
-                return icon
-
-            tray_icon = create_tray()
-
-            def on_minimized():
-                window.hide()
-
-            def on_closed():
-                tray_icon.stop()
-
-            window.events.minimized += on_minimized
-            window.events.closed += on_closed
-            
-            tray_icon.run_detached()
-
-        webview.start(
-            gui=platform.gui_backend,
-            debug=False,
-            icon=icon_path
-        )
+    run_desktop(
+        platform=platform,
+        port=SERVER_PORT,
+        url=f'https://{get_lan_ip()}:{SERVER_PORT}',
+        version=VERSION,
+        webui_dir=WEBUI_DIR,
+        icon_path=icon_path,
+    )
 

@@ -5,23 +5,12 @@ from .base import BasePlatform
 
 class MacOSPlatform(BasePlatform):
     @property
-    def use_system_browser(self) -> bool:
-        return True  # WKWebView 对自签名证书处理不稳定，直接用系统浏览器
-
-    @property
-    def gui_backend(self) -> str | None:
-        return None
-
-    @property
     def driver_display_name(self) -> str:
         return 'BlackHole 2ch'
 
     @property
     def driver_match_keyword(self) -> str:
         return 'blackhole'
-
-    def get_webview_env(self) -> dict[str, str]:
-        return {}
 
     def is_admin(self) -> bool:
         try:
