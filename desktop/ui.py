@@ -1,5 +1,9 @@
-from PySide6.QtCore import Qt, QTimer, Signal
-from PySide6.QtGui import QPixmap
+import math
+import os
+import sys
+
+from PySide6.QtCore import QPointF, Qt, QTimer, Signal
+from PySide6.QtGui import QColor, QFont, QFontDatabase, QPainter, QPixmap
 from PySide6.QtWidgets import (
     QComboBox,
     QFrame,
@@ -17,12 +21,143 @@ DOT_OK = "#4CAF50"
 DOT_WARN = "#FF9800"
 DOT_ERROR = "#FF5252"
 
-MIC_IDLE_BG = "#2a2a2a"
-MIC_IDLE_FG = "#8a8a8a"
-MIC_ON_BG = "#4285F4"
-MIC_ON_FG = "#ffffff"
-MIC_MUTED_BG = "#FFB3AE"
-MIC_MUTED_FG = "#4a0005"
+ICON_FONT_FILE = "MaterialIcons.ttf"
+ICON_VOLUME_OFF = 0xE04F
+ICON_VOLUME_UP = 0xE050
+
+BUTTON_DIAMETER = 124
+BUTTON_WIDGET_SIZE = 216
+RING_MAX_SCALE = 1.55
+ICON_PIXEL_SIZE = 54
+
+BUTTON_IDLE_BG = QColor(0x2A, 0x2A, 0x2A)
+BUTTON_IDLE_FG = QColor(0x8A, 0x8A, 0x8A)
+BUTTON_ACTIVE_BG = QColor(0x42, 0x85, 0xF4)
+BUTTON_ACTIVE_FG = QColor(0xFF, 0xFF, 0xFF)
+BUTTON_MUTED_BG = QColor(0xFF, 0xB3, 0xAE)
+BUTTON_MUTED_FG = QColor(0x4A, 0x00, 0x05)
+
+_icon_family_cache = None
+_icon_family_loaded = False
+
+
+def _load_icon_family():
+    """Register the bundled Material Icons subset so we can draw the real web icons."""
+    here = os.path.dirname(os.path.abspath(__file__))
+    candidates = [
+        os.path.join(here, ICON_FONT_FILE),
+        os.path.join(getattr(sys, "_MEIPASS", ""), "desktop", ICON_FONT_FILE),
+    ]
+    for path in candidates:
+        if path and os.path.exists(path):
+            font_id = QFontDatabase.addApplicationFont(path)
+            if font_id != -1:
+                families = QFontDatabase.applicationFontFamilies(font_id)
+                if families:
+                    return families[0]
+    return None
+
+
+def icon_family():
+    global _icon_family_cache, _icon_family_loaded
+    if not _icon_family_loaded:
+        _icon_family_cache = _load_icon_family()
+        _icon_family_loaded = True
+    return _icon_family_cache
+
+
+def _normalise_level(rms):
+    """Map a linear RMS value onto 0..1 using a dB curve, so it does not saturate."""
+    if rms <= 0.0:
+        return 0.0
+    db = 20.0 * math.log10(rms)
+    return max(0.0, min(1.0, (db + 54.0) / 44.0))
+
+
+class MicButton(QWidget):
+    """Round toggle that mirrors the web UI's speaker button."""
+
+    clicked = Signal()
+
+    def __init__(self, level_provider=None, parent=None):
+        super().__init__(parent)
+        self.setFixedSize(BUTTON_WIDGET_SIZE, BUTTON_WIDGET_SIZE)
+        self.setCursor(Qt.PointingHandCursor)
+
+        self._level_provider = level_provider
+        self._state = "idle"
+        self._display = 0.0
+        self._family = icon_family()
+
+        self._timer = QTimer(self)
+        self._timer.setInterval(16)  # ~60 fps, like requestAnimationFrame
+        self._timer.timeout.connect(self._tick)
+        self._timer.start()
+
+    def set_state(self, state):
+        if state != self._state:
+            self._state = state
+            if state != "active":
+                self._display = 0.0
+            self.update()
+
+    def set_level_provider(self, provider):
+        self._level_provider = provider
+
+    def _tick(self):
+        if self._state != "active" and self._display <= 0.002:
+            return
+
+        target = 0.0
+        if self._state == "active" and self._level_provider is not None:
+            try:
+                target = _normalise_level(float(self._level_provider()))
+            except Exception:
+                target = 0.0
+
+        # Fast attack, slow release: glides instead of snapping to full size.
+        rate = 0.26 if target > self._display else 0.06
+        self._display += (target - self._display) * rate
+        self.update()
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.clicked.emit()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing, True)
+        painter.setRenderHint(QPainter.TextAntialiasing, True)
+
+        if self._state == "muted":
+            button_bg, icon_fg, icon_cp = BUTTON_MUTED_BG, BUTTON_MUTED_FG, ICON_VOLUME_OFF
+        elif self._state == "active":
+            button_bg, icon_fg, icon_cp = BUTTON_ACTIVE_BG, BUTTON_ACTIVE_FG, ICON_VOLUME_UP
+        else:
+            button_bg, icon_fg, icon_cp = BUTTON_IDLE_BG, BUTTON_IDLE_FG, ICON_VOLUME_OFF
+
+        centre = QPointF(self.width() / 2.0, self.height() / 2.0)
+        button_radius = BUTTON_DIAMETER / 2.0
+
+        # Ring first, so it sits behind the button and grows evenly outwards.
+        if self._display > 0.002:
+            ring = QColor(button_bg)
+            ring.setAlphaF(min(0.30, 0.08 + self._display * 0.24))
+            ring_radius = button_radius * (1.0 + self._display * (RING_MAX_SCALE - 1.0))
+            painter.setPen(Qt.NoPen)
+            painter.setBrush(ring)
+            painter.drawEllipse(centre, ring_radius, ring_radius)
+
+        painter.setPen(Qt.NoPen)
+        painter.setBrush(button_bg)
+        painter.drawEllipse(centre, button_radius, button_radius)
+
+        if self._family:
+            font = QFont(self._family)
+            font.setPixelSize(ICON_PIXEL_SIZE)
+            painter.setFont(font)
+            painter.setPen(icon_fg)
+            painter.drawText(self.rect(), Qt.AlignCenter, chr(icon_cp))
 
 
 class MainWindow(QMainWindow):
@@ -50,17 +185,12 @@ class MainWindow(QMainWindow):
         self._level_provider = None
         self._build()
 
-        self._level_timer = QTimer(self)
-        self._level_timer.setInterval(40)
-        self._level_timer.timeout.connect(self._tick_level)
-        self._level_timer.start()
-
     # ------------------------------------------------------------------
     # construction
     # ------------------------------------------------------------------
     def _build(self):
         self.setWindowTitle("ZeroMic Desktop")
-        self.resize(420, 800)
+        self.resize(420, 820)
 
         central = QWidget()
         central.setObjectName("centralWidget")
@@ -182,10 +312,7 @@ class MainWindow(QMainWindow):
 
         mic_row = QHBoxLayout()
         mic_row.addStretch(1)
-        self._mic_button = QPushButton("\U0001F3A4")
-        self._mic_button.setObjectName("micButton")
-        self._mic_button.setFixedSize(140, 140)
-        self._mic_button.setCursor(Qt.PointingHandCursor)
+        self._mic_button = MicButton()
         self._mic_button.clicked.connect(lambda: self.muteToggled.emit())
         mic_row.addWidget(self._mic_button)
         mic_row.addStretch(1)
@@ -202,7 +329,6 @@ class MainWindow(QMainWindow):
         root.addWidget(self._connect_button)
 
         self.set_language(self._language)
-        self._apply_mic_style()
 
     # ------------------------------------------------------------------
     # slots
@@ -224,17 +350,6 @@ class MainWindow(QMainWindow):
         device = self._device_combo.itemData(index)
         if device is not None:
             self.deviceChanged.emit(int(device))
-
-    def _tick_level(self):
-        if self._level_provider is None or not self._presence:
-            return
-        try:
-            level = float(self._level_provider())
-        except Exception:
-            return
-        size = int(140 + min(max(level, 0.0) * 6.0, 1.0) * 46)
-        self._mic_button.setFixedSize(size, size)
-        self._apply_mic_style(size)
 
     # ------------------------------------------------------------------
     # language
@@ -262,6 +377,7 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------
     def set_level_provider(self, provider):
         self._level_provider = provider
+        self._mic_button.set_level_provider(provider)
 
     def set_devices(self, devices, current_index=None):
         self._device_combo.blockSignals(True)
@@ -311,9 +427,7 @@ class MainWindow(QMainWindow):
         self._presence = connected
         self._tutorial_card.setVisible(not connected)
         self._control_area.setVisible(connected)
-        if not connected:
-            self._mic_button.setFixedSize(140, 140)
-            self._apply_mic_style(140)
+        self._update_mic_state()
         self._refresh_status()
 
     def set_rtc_state(self, state):
@@ -322,9 +436,16 @@ class MainWindow(QMainWindow):
 
     def set_muted(self, muted):
         self._muted = muted
-        self._mic_button.setText("\U0001F507" if muted else "\U0001F3A4")
-        self._apply_mic_style()
+        self._update_mic_state()
         self._refresh_status()
+
+    def _update_mic_state(self):
+        if not self._presence:
+            self._mic_button.set_state("idle")
+        elif self._muted:
+            self._mic_button.set_state("muted")
+        else:
+            self._mic_button.set_state("active")
 
     def _refresh_status(self):
         if not self._link_up:
@@ -344,22 +465,6 @@ class MainWindow(QMainWindow):
         self._dot.setStyleSheet(f"background-color: {color}; border-radius: 5px;")
         self._status_text.setText(text)
         self._status_text.setStyleSheet(f"color: {color};")
-
-    def _apply_mic_style(self, size=None):
-        if size is None:
-            size = self._mic_button.width()
-        radius = size // 2
-
-        if self._muted:
-            bg, fg = MIC_MUTED_BG, MIC_MUTED_FG
-        elif self._presence:
-            bg, fg = MIC_ON_BG, MIC_ON_FG
-        else:
-            bg, fg = MIC_IDLE_BG, MIC_IDLE_FG
-
-        self._mic_button.setStyleSheet(
-            f"background-color: {bg}; color: {fg}; border: none; border-radius: {radius}px;"
-        )
 
     def closeEvent(self, event):
         if getattr(self, "allow_close", False):

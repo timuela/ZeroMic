@@ -7,7 +7,12 @@ from PyInstaller.utils.hooks import collect_all, collect_data_files
 # 从环境变量获取架构，默认为空（让系统自动决定）
 target_arch = os.environ.get('TARGET_ARCH', None)
 
-base_datas = [('webui', 'webui'), ('desktop/style.qss', 'desktop'), ('icon.ico', '.')]
+base_datas = [
+    ('webui', 'webui'),
+    ('desktop/style.qss', 'desktop'),
+    ('desktop/MaterialIcons.ttf', 'desktop'),
+    ('icon.ico', '.'),
+]
 if sys.platform == 'win32':
     base_datas.append(('drivers/vbcable.zip', 'drivers'))
 

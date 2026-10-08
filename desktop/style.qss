@@ -145,11 +145,6 @@ QPushButton#dangerButton:hover {
     background-color: #3a3a3a;
 }
 
-QPushButton#micButton {
-    border: none;
-    font-size: 52px;
-}
-
 QMenu {
     background-color: #1e1e1e;
     color: #e6e6e6;
