@@ -6,7 +6,7 @@ import os
 import sys
 import threading
 
-from PySide6.QtCore import QObject, Qt, Signal
+from PySide6.QtCore import QObject, QSettings, Qt, Signal
 from PySide6.QtGui import QAction, QIcon
 from PySide6.QtWidgets import QApplication, QMenu, QMessageBox, QSystemTrayIcon
 
@@ -127,13 +127,22 @@ class AsyncRunner:
             pass
 
 
+def _settings_path():
+    """Keep settings next to the executable so the build stays portable."""
+    if getattr(sys, "frozen", False):
+        base = os.path.dirname(sys.executable)
+    else:
+        base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base, "zeromic-host.ini")
+
+
 class DesktopApp:
-    def __init__(self, qapp, platform, port, url, version, webui_dir, icon_path):
+    def __init__(self, qapp, platform, version, webui_dir, icon_path, server):
         self._qapp = qapp
         self._platform = platform
-        self._port = port
-        self._url = url
         self._version = version
+        self._server = server
+        self._settings = QSettings(_settings_path(), QSettings.IniFormat)
         self._translator = Translator(webui_dir)
         self._t = self._translator
 
@@ -145,16 +154,12 @@ class DesktopApp:
         self._current_device = None
         self._hint_shown = False
         self._muted = False
+        self._active = False
 
         self._window = MainWindow(self._t, version, self._translator.lang)
         self._window.set_level_provider(self._session.level)
-        self._window.set_url(url)
         self._window.set_gain(1.0)
         self._window.on_hidden = self._on_window_hidden
-
-        qr = _make_qr_png(url)
-        if qr:
-            self._window.set_qr(qr)
 
         self._connect_signals()
         self._tray = self._build_tray(icon_path)
@@ -171,6 +176,8 @@ class DesktopApp:
         self._window.uninstallDriverRequested.connect(self._on_uninstall_driver)
         self._window.aboutRequested.connect(self._on_about)
         self._window.languageToggled.connect(self._on_language_toggled)
+        self._window.addressSelected.connect(self._on_address_selected)
+        self._window.portChangeRequested.connect(self._on_port_requested)
 
         self._feedback.presenceChanged.connect(self._window.set_presence)
         self._feedback.linkStateChanged.connect(self._window.set_link_state)
@@ -209,8 +216,68 @@ class DesktopApp:
     # ------------------------------------------------------------------
     def start(self):
         self._window.show()
+        self._apply_saved_port()
+        self._refresh_addresses()
         self._refresh_devices()
         threading.Thread(target=self._check_driver, daemon=True).start()
+
+    def _apply_saved_port(self):
+        saved = self._settings.value("port")
+        if saved is None:
+            return
+        try:
+            saved = int(saved)
+        except (TypeError, ValueError):
+            return
+        if saved == self._server.port or not 1024 <= saved <= 65535:
+            return
+        ok, _ = self._server.restart(saved)
+        if not ok:
+            QMessageBox.information(
+                self._window,
+                "ZeroMic",
+                self._t("host_port_failed", "Could not use the saved port"),
+            )
+
+    def _session_url(self):
+        return f"https://127.0.0.1:{self._server.port}"
+
+    def _refresh_addresses(self):
+        port = self._server.port
+        self._window.set_port(port)
+        addresses = [f"https://{ip}:{port}" for ip in self._server.ips()]
+        self._window.set_addresses(addresses)
+
+    def _on_address_selected(self, url):
+        self._window.set_selected_address(url)
+        png = _make_qr_png(url)
+        if png:
+            self._window.set_qr(png)
+
+    def _on_port_requested(self, port):
+        if port == self._server.port:
+            return
+
+        if self._active:
+            self._runner.schedule(self._session.stop())
+
+        ok, message = self._server.restart(port)
+        if not ok:
+            QMessageBox.warning(
+                self._window,
+                "ZeroMic",
+                f"{self._t('host_port_failed', 'Could not use that port')}\n{message}",
+            )
+            self._window.set_port(self._server.port)
+        else:
+            self._settings.setValue("port", port)
+            self._settings.sync()
+            self._refresh_addresses()
+
+        if self._active:
+            self._runner.schedule(
+                self._session.start(self._session_url(), self._current_device)
+            )
 
     def _refresh_devices(self):
         devices = list_output_devices()
@@ -242,10 +309,13 @@ class DesktopApp:
     def _on_connect(self):
         self._window.set_rtc_state("new")
         self._window.set_active(True)
-        url = f"https://127.0.0.1:{self._port}"
-        self._runner.schedule(self._session.start(url, self._current_device))
+        self._active = True
+        self._runner.schedule(
+            self._session.start(self._session_url(), self._current_device)
+        )
 
     def _on_disconnect(self):
+        self._active = False
         self._window.set_active(False)
         self._window.set_presence(False)
         self._window.set_rtc_state("new")
@@ -360,7 +430,7 @@ class DesktopApp:
         self._qapp.quit()
 
 
-def run_desktop(platform, port, url, version, webui_dir, icon_path=None):
+def run_desktop(platform, version, webui_dir, icon_path=None, server=None):
     app = QApplication.instance()
     if app is None:
         app = QApplication(sys.argv)
@@ -380,6 +450,8 @@ def run_desktop(platform, port, url, version, webui_dir, icon_path=None):
         except Exception:
             log.debug("could not load stylesheet")
 
-    controller = DesktopApp(app, platform, port, url, version, webui_dir, icon_path)
+    controller = DesktopApp(
+        app, platform, version, webui_dir, icon_path, server
+    )
     controller.start()
     return app.exec()

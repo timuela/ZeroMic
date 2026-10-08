@@ -219,7 +219,14 @@ class MicService : Service(), SignalingClient.Listener, WebRtcClient.Listener {
     private fun parseAddress(raw: String): Pair<String, Int>? {
         val trimmed = raw.trim().removePrefix("https://").removePrefix("http://").trimEnd('/')
         if (trimmed.isEmpty()) return null
+
         val parts = trimmed.split(":")
+        // A bare IP or hostname is fine; the default port is assumed.
+        if (parts.size == 1) {
+            val host = parts[0].trim()
+            return if (host.isEmpty()) null else host to DEFAULT_PORT
+        }
+
         if (parts.size != 2) return null
         val host = parts[0].trim()
         val port = parts[1].trim().toIntOrNull() ?: return null
@@ -315,6 +322,7 @@ class MicService : Service(), SignalingClient.Listener, WebRtcClient.Listener {
 
         private const val CHANNEL_ID = "zeromic_mic"
         private const val NOTIFICATION_ID = 1
+        private const val DEFAULT_PORT = 5000
 
         fun start(context: Context, address: String, gain: Float) {
             val intent = Intent(context, MicService::class.java).apply {

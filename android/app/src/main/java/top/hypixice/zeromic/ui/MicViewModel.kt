@@ -23,6 +23,7 @@ import kotlinx.coroutines.launch
 import top.hypixice.zeromic.MicPhase
 import top.hypixice.zeromic.MicService
 import top.hypixice.zeromic.MicState
+import top.hypixice.zeromic.data.HostProfile
 import top.hypixice.zeromic.data.Prefs
 
 class MicViewModel(application: Application) : AndroidViewModel(application) {
@@ -34,6 +35,9 @@ class MicViewModel(application: Application) : AndroidViewModel(application) {
         private set
 
     var gain by mutableFloatStateOf(prefs.gain)
+        private set
+
+    var profiles by mutableStateOf(prefs.profiles())
         private set
 
     private val _state = MutableStateFlow(MicState(gain = prefs.gain))
@@ -64,6 +68,29 @@ class MicViewModel(application: Application) : AndroidViewModel(application) {
 
     fun onAddressChange(value: String) {
         address = value
+    }
+
+    fun selectProfile(profile: HostProfile) {
+        address = profile.address
+    }
+
+    fun hasProfileFor(value: String): Boolean {
+        val target = value.trim()
+        return target.isNotEmpty() && profiles.any { it.address == target }
+    }
+
+    fun saveCurrentProfile() {
+        val target = address.trim()
+        if (target.isEmpty()) return
+        val updated = profiles.filterNot { it.address == target } + HostProfile(target, target)
+        profiles = updated
+        prefs.saveProfiles(updated)
+    }
+
+    fun deleteProfile(profile: HostProfile) {
+        val updated = profiles.filterNot { it.address == profile.address }
+        profiles = updated
+        prefs.saveProfiles(updated)
     }
 
     fun onGainChange(value: Float) {

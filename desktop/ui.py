@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QPushButton,
     QSlider,
+    QSpinBox,
     QVBoxLayout,
     QWidget,
 )
@@ -192,6 +193,8 @@ class MainWindow(QMainWindow):
     aboutRequested = Signal()
     languageToggled = Signal()
     installReminderAcknowledged = Signal()
+    addressSelected = Signal(str)
+    portChangeRequested = Signal(int)
 
     def __init__(self, t, version, language="en_us"):
         super().__init__()
@@ -292,11 +295,29 @@ class MainWindow(QMainWindow):
         self._tutorial_title.setAlignment(Qt.AlignCenter)
         tutorial.addWidget(self._tutorial_title)
 
-        self._url_label = QLabel("...")
-        self._url_label.setObjectName("urlLabel")
-        self._url_label.setAlignment(Qt.AlignCenter)
-        self._url_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
-        tutorial.addWidget(self._url_label)
+        # one button per network address, so a PC with several interfaces
+        # (Wi-Fi, Ethernet, Tailscale, ...) can be reached on any of them
+        self._address_box = QVBoxLayout()
+        self._address_box.setSpacing(4)
+        self._address_buttons = []
+        self._selected_address = None
+        tutorial.addLayout(self._address_box)
+
+        port_row = QHBoxLayout()
+        self._port_label = QLabel(self._t("host_port", "Port"))
+        port_row.addWidget(self._port_label)
+
+        self._port_input = QSpinBox()
+        self._port_input.setRange(1024, 65535)
+        self._port_input.setValue(5000)
+        port_row.addWidget(self._port_input)
+
+        self._apply_port_button = QPushButton(self._t("host_apply", "Apply"))
+        self._apply_port_button.setObjectName("flatButton")
+        self._apply_port_button.clicked.connect(self._on_apply_port)
+        port_row.addWidget(self._apply_port_button)
+        port_row.addStretch(1)
+        tutorial.addLayout(port_row)
 
         self._tutorial_warn = QLabel(self._t("tutorial_warn", "The \u201cNot Secure\u201d warning is normal."))
         self._tutorial_warn.setObjectName("warnLabel")
@@ -386,6 +407,8 @@ class MainWindow(QMainWindow):
         self._uninstall_button.setText(self._t("header_uninstall", "Uninstall Driver"))
         self._status_title.setText(self._t("status_label", "Mobile Connection"))
         self._gain_label.setText(self._t("desktop_gain", "Volume"))
+        self._port_label.setText(self._t("host_port", "Port"))
+        self._apply_port_button.setText(self._t("host_apply", "Apply"))
         self._tutorial_title.setText(self._t("tutorial_title", "Waiting for Mobile"))
         self._tutorial_warn.setText(
             self._t("tutorial_warn", "The \u201cNot Secure\u201d warning is normal.")
@@ -417,8 +440,41 @@ class MainWindow(QMainWindow):
         self._gain_value_label.setText(f"{gain:.1f}x")
         self._gain_slider.blockSignals(False)
 
-    def set_url(self, url):
-        self._url_label.setText(url)
+    def set_addresses(self, addresses):
+        while self._address_box.count():
+            item = self._address_box.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
+
+        self._address_buttons = []
+        for url in addresses:
+            button = QPushButton(url)
+            button.setObjectName("addressButton")
+            button.setCursor(Qt.PointingHandCursor)
+            button.clicked.connect(lambda _=False, target=url: self.addressSelected.emit(target))
+            self._address_box.addWidget(button)
+            self._address_buttons.append(button)
+
+        if addresses:
+            self.addressSelected.emit(addresses[0])
+
+    def set_selected_address(self, url):
+        self._selected_address = url
+        for button in self._address_buttons:
+            name = "addressButtonSelected" if button.text() == url else "addressButton"
+            if button.objectName() != name:
+                button.setObjectName(name)
+                button.style().unpolish(button)
+                button.style().polish(button)
+
+    def set_port(self, port):
+        self._port_input.blockSignals(True)
+        self._port_input.setValue(int(port))
+        self._port_input.blockSignals(False)
+
+    def _on_apply_port(self):
+        self.portChangeRequested.emit(self._port_input.value())
 
     def set_qr(self, png_bytes):
         pixmap = QPixmap()

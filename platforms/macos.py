@@ -12,6 +12,24 @@ class MacOSPlatform(BasePlatform):
     def driver_match_keyword(self) -> str:
         return 'blackhole'
 
+    def list_lan_ips(self) -> list[str]:
+        """列出所有 IPv4 地址，包含 VPN / Tailscale 等虚拟网卡。"""
+        ips: list[str] = []
+        try:
+            output = subprocess.check_output(['ifconfig'], text=True, timeout=5)
+        except Exception as e:
+            print("List LAN IPs Error:", e)
+            return ips
+
+        for line in output.splitlines():
+            line = line.strip()
+            if not line.startswith('inet '):
+                continue
+            address = line.split()[1]
+            if not address.startswith(('127.', '169.254.')):
+                ips.append(address)
+        return ips
+
     def is_admin(self) -> bool:
         try:
             return True

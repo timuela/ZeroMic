@@ -61,5 +61,8 @@
   "desktop_disconnect": "Disconnect",
   "status_connecting": "Connecting...",
   "status_error": "Connection Failed",
-  "status_offline": "Not connected to service"
+  "status_offline": "Not connected to service",
+  "host_port": "Port",
+  "host_apply": "Apply",
+  "host_port_failed": "Could not use that port"
 }

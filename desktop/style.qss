@@ -46,15 +46,33 @@ QLabel {
     font-size: 12px;
 }
 
-#urlLabel {
+#addressButton, #addressButtonSelected {
     background-color: #111111;
     border: 1px solid #333333;
     border-radius: 8px;
     padding: 8px 14px;
     font-family: monospace;
-    font-size: 15px;
+    font-size: 14px;
     font-weight: bold;
     color: #ffffff;
+}
+
+#addressButton:hover {
+    border-color: #4285F4;
+}
+
+#addressButtonSelected {
+    border-color: #4285F4;
+    background-color: #14243d;
+}
+
+QSpinBox {
+    background-color: #1e1e1e;
+    border: 1px solid #333333;
+    border-radius: 8px;
+    padding: 4px 8px;
+    color: #e6e6e6;
+    min-width: 76px;
 }
 
 #warnLabel {

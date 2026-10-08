@@ -15,6 +15,35 @@ class LinuxPlatform(BasePlatform):
     def driver_match_keyword(self) -> str:
         return self.SINK_NAME
 
+    def list_lan_ips(self) -> list[str]:
+        """列出所有 IPv4 地址，包含 VPN / Tailscale 等虚拟网卡。"""
+        ips: list[str] = []
+        try:
+            output = subprocess.check_output(
+                ['ip', '-o', '-4', 'addr', 'show'], text=True, timeout=5
+            )
+            for line in output.splitlines():
+                parts = line.split()
+                if len(parts) >= 4:
+                    address = parts[3].split('/')[0]
+                    if not address.startswith(('127.', '169.254.')):
+                        ips.append(address)
+            return ips
+        except Exception:
+            pass
+
+        try:
+            output = subprocess.check_output(
+                ['hostname', '-I'], text=True, timeout=5
+            )
+            return [
+                a for a in output.split()
+                if not a.startswith(('127.', '169.254.'))
+            ]
+        except Exception as e:
+            print("List LAN IPs Error:", e)
+            return []
+
     def is_admin(self) -> bool:
         try:
             return True

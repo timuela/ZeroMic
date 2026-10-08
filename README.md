@@ -63,31 +63,37 @@ Powered by **WebRTC P2P technology**, audio data is streamed directly within you
 6. In your game or voice chat software, set the **Microphone Input Device** to the virtual device created by ZeroMic.
 7. Start talking!
 
-## 🖥️ Desktop Client
+## 🖥️ ZeroMic Host — PC (portable)
 
 The PC side is a **native Qt application** (PySide6), not a web page. It hosts the local
 HTTPS / Socket.IO signalling server, answers the WebRTC call with `aiortc`, and writes the decoded
 audio straight into the virtual cable through `sounddevice`. No WebView2, no browser involved.
 
+Released as `ZeroMic-Host-Portable-<version>-<platform>` — no installer, just run it.
+
 - Native window + system tray (show / mute / exit).
 - `aiortc` as the WebRTC answerer; host-candidate ICE only, so it connects instantly on the LAN.
+- Lists **every** network address the PC has (Wi-Fi, Ethernet, VPN, Tailscale), each with its own
+  QR code, so the phone can reach it on whichever network you are actually using.
+- The listening port can be changed from the window; it is remembered between runs.
 - Auto-matches the virtual device (`CABLE Input` / `zeromic_sink` / `BlackHole`).
 - Live gain slider and mute that act on the audio callback, so they respond instantly.
 
 > **Building requires Python 3.11–3.13.** PySide6 does not support 3.14 yet.
 
-## 📱 Native Android Client
+## 📱 ZeroMic Client — Android
 
 The browser client works, but Android browsers (Chrome, Brave, etc.) suspend the page when the
 screen turns off, which kills the microphone stream. For reliable screen-off streaming there is a
-native client in [`android/`](./android).
+native client in [`android/`](./android), released as `ZeroMic-Client-<version>.apk`.
 
 - Runs as a foreground service with a partial wake lock + Wi-Fi lock, so the mic keeps streaming
   while the screen is off.
-- Speaks the exact same Socket.IO + WebRTC signaling protocol as the web client — the PC side is
+- Speaks the exact same Socket.IO + WebRTC signalling protocol as the web client — the PC side is
   completely unchanged, and it also auto-recovers the session with an ICE restart if the network
   path changes.
-- Enter the `IP:port` shown by the desktop UI, tap Connect, done (the last address is remembered).
+- Save hosts as **profiles** and pick one from the Hosts menu instead of retyping the address.
+- Type just an IP and the port defaults to `5000`; add `:port` only when the host uses another one.
 
 Requires Android 8.0 (API 26) or newer.
 

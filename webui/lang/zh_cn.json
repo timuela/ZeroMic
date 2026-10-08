@@ -63,5 +63,8 @@
   "desktop_disconnect": "断开",
   "status_connecting": "连接中...",
   "status_error": "连接失败",
-  "status_offline": "未连接到服务"
+  "status_offline": "未连接到服务",
+  "host_port": "端口",
+  "host_apply": "应用",
+  "host_port_failed": "无法使用该端口"
 }

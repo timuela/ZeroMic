@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: '手动指定版本号 (如 v0.0.1)'
+        description: '手动指定版本号 (如 v0.1.0)'
         required: false
         type: string
 
@@ -15,8 +15,9 @@ permissions:
   contents: write
 
 jobs:
+  # === ZeroMic Host: the portable desktop build ===
   build:
-    name: Build on ${{ matrix.os }} (${{ matrix.target_name }})
+    name: Host ${{ matrix.target_name }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -27,24 +28,24 @@ jobs:
             python_arch: x64       # 环境必须是 x64 才能成功安装
             target_arch: x86_64    # 打包目标 x64
             target_name: windows-x64
-            
+
           - os: windows-latest
             python_arch: x64       # 欺骗环境：用 x64 的 Python
             target_arch: arm64     # 交叉编译：强制打包成 arm64
             target_name: windows-arm64
-            
+
           # === Linux 系列 ===
           - os: ubuntu-latest
             python_arch: x64
             target_arch: x86_64
             target_name: linux-x64
-            
+
           # === macOS 系列 (Apple Silicon) ===
           - os: macos-14
             python_arch: arm64
             target_arch: arm64
             target_name: macos-arm64
-            
+
           # === macOS 系列 (官方最新免费 Intel 节点) ===
           - os: macos-15-intel
             python_arch: x64
@@ -81,8 +82,9 @@ jobs:
         id: version
         shell: bash
         run: |
-          VERSION="${{ github.event.inputs.version || github.ref_name }}"
-          echo "tag=$VERSION" >> $GITHUB_OUTPUT
+          RAW="${{ github.event.inputs.version || github.ref_name }}"
+          echo "tag=$RAW" >> $GITHUB_OUTPUT
+          echo "version=${RAW#v}" >> $GITHUB_OUTPUT
 
       # === Windows 独立构建 (利用 PowerShell 和 Spec 变量) ===
       - name: Build with PyInstaller (Windows)
@@ -91,7 +93,7 @@ jobs:
           TARGET_ARCH: ${{ matrix.target_arch }} # 关键：传给 main.spec
         run: |
           pyinstaller --noconfirm main.spec
-          Move-Item -Path "dist\ZeroMic.exe" -Destination "dist\ZeroMic-${{ steps.version.outputs.tag }}-${{ matrix.target_name }}.exe" -Force
+          Move-Item -Path "dist\ZeroMic.exe" -Destination "dist\ZeroMic-Host-Portable-${{ steps.version.outputs.version }}-${{ matrix.target_name }}.exe" -Force
         shell: pwsh
 
       # === Linux/macOS 独立构建 (利用 Bash 和 Spec 变量) ===
@@ -101,19 +103,82 @@ jobs:
           TARGET_ARCH: ${{ matrix.target_arch }} # 关键：传给 main.spec
         run: |
           pyinstaller --noconfirm main.spec
-          mv dist/ZeroMic dist/ZeroMic-${{ steps.version.outputs.tag }}-${{ matrix.target_name }}
+          mv dist/ZeroMic "dist/ZeroMic-Host-Portable-${{ steps.version.outputs.version }}-${{ matrix.target_name }}"
         shell: bash
 
-      - name: Upload Artifact
+      - name: Upload Host build
         uses: actions/upload-artifact@v4
         with:
-          name: ZeroMic-${{ matrix.target_name }}
-          path: dist/ZeroMic-*
+          name: ZeroMic-Host-${{ matrix.target_name }}
+          path: dist/ZeroMic-Host-Portable-*
           retention-days: 5
 
+  # === ZeroMic Client: the Android app ===
+  android:
+    name: Client android
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+
+      # Keep one debug signing key across runs, otherwise each build gets a new
+      # signature and the APK cannot upgrade an existing install.
+      - name: Cache debug keystore
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: zeromic-debug-keystore-v1
+
+      - name: Get Version String
+        id: version
+        shell: bash
+        working-directory: .
+        run: |
+          RAW="${{ github.event.inputs.version || github.ref_name }}"
+          echo "version=${RAW#v}" >> $GITHUB_OUTPUT
+
+      - name: Build client APK
+        run: |
+          gradle assembleDebug --no-daemon --stacktrace \
+            -PversionName=${{ steps.version.outputs.version }} \
+            -PversionCode=${{ github.run_number }}
+
+      - name: Rename APK
+        run: |
+          mkdir -p ../dist
+          cp app/build/outputs/apk/debug/app-debug.apk \
+             "../dist/ZeroMic-Client-${{ steps.version.outputs.version }}.apk"
+
+      - name: Upload Client build
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZeroMic-Client
+          path: dist/ZeroMic-Client-*.apk
+          retention-days: 5
+
+  # === Publish both halves as one release ===
   release:
     name: Create Release
-    needs: build
+    needs: [build, android]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
 
@@ -127,6 +192,7 @@ jobs:
         run: |
           mkdir -p release-files
           find artifacts -type f -exec cp {} release-files/ \;
+          ls -la release-files
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2

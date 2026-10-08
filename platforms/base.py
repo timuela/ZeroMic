@@ -11,6 +11,10 @@ class BasePlatform:
         """在前端 enumerateDevices 中匹配设备的关键词（小写）。"""
         raise NotImplementedError
 
+    def list_lan_ips(self) -> list[str]:
+        """返回本机所有可用的局域网 IPv4 地址（用于生成多个访问地址）。"""
+        return []
+
     def is_admin(self) -> bool:
         raise NotImplementedError
 

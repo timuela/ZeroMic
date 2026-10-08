@@ -18,7 +18,7 @@ else:
     base_path = os.path.dirname(os.path.abspath(__file__))
 
 # 常量
-VERSION = "v0.0.10"
+VERSION = "v0.1.0"
 DEFAULT_PORT = 5000
 
 # 单实例检测
@@ -91,6 +91,9 @@ def get_available_port(start_port, max_port=5100):
 
 SERVER_PORT = get_available_port(DEFAULT_PORT)
 
+# 当前实际使用的端口，可通过桌面客户端更改
+server_port = SERVER_PORT
+
 # 平台检测
 platform = get_platform()
 
@@ -117,6 +120,18 @@ def get_lan_ip():
     return IP
 
 
+def get_lan_ips():
+    """本机所有可访问的 IPv4 地址，主地址排在最前。"""
+    try:
+        ips = [ip for ip in platform.list_lan_ips() if ip]
+    except Exception:
+        ips = []
+
+    primary = get_lan_ip()
+    ips = [ip for ip in ips if ip != primary]
+    return [primary] + ips
+
+
 # ==========================================
 # 2. 路由配置
 # ==========================================
@@ -134,7 +149,8 @@ def desktop():
 def api_info():
     return jsonify({
         "ip": get_lan_ip(),
-        "port": SERVER_PORT,
+        "ips": get_lan_ips(),
+        "port": server_port,
         "version": VERSION
     })
 
@@ -255,14 +271,66 @@ def on_toggle_mute():
 # ==========================================
 # 4. 启动入口
 # ==========================================
-def start_flask():
-    lan_ip = get_lan_ip()
-    print(f"\n=========================================")
-    print(f"ZeroMic 服务端已启动！")
-    print(f"手机请访问: https://{lan_ip}:{SERVER_PORT}")
-    print(f"=========================================\n")
+_server = None
+_server_lock = threading.Lock()
 
-    socketio.run(app, host='0.0.0.0', port=SERVER_PORT, ssl_context='adhoc', debug=False, use_reloader=False, allow_unsafe_werkzeug=True)
+
+def _stop_server_locked():
+    global _server
+    server, _server = _server, None
+    if server is not None:
+        try:
+            server.shutdown()
+        except Exception:
+            pass
+
+
+def stop_server():
+    with _server_lock:
+        _stop_server_locked()
+
+
+def start_server(port):
+    """启动 HTTPS 信令服务，先停掉正在运行的实例。
+
+    :raises OSError: 端口被占用等问题由调用方决定如何提示。
+    """
+    global _server, server_port
+    from werkzeug.serving import make_server
+
+    with _server_lock:
+        _stop_server_locked()
+        _server = make_server(
+            '0.0.0.0', port, app, ssl_context='adhoc', threaded=True
+        )
+        server_port = port
+
+    threading.Thread(target=_server.serve_forever, daemon=True).start()
+
+    print("\n=========================================")
+    print("ZeroMic Host 已启动！")
+    for address in get_lan_ips():
+        print(f"手机请访问: https://{address}:{port}")
+    print("=========================================\n")
+    return True
+
+
+class ServerControl:
+    """暴露给桌面客户端的最小服务器控制接口。"""
+
+    @property
+    def port(self):
+        return server_port
+
+    def ips(self):
+        return get_lan_ips()
+
+    def restart(self, port):
+        try:
+            start_server(port)
+            return True, ""
+        except Exception as exc:
+            return False, str(exc)
 
 
 if __name__ == '__main__':
@@ -270,12 +338,11 @@ if __name__ == '__main__':
         notify_already_running()
         sys.exit(0)
 
-    # 启动 Flask 线程
-    flask_thread = threading.Thread(target=start_flask, daemon=True)
-    flask_thread.start()
-
-    # 给 Flask 一点时间启动
-    time.sleep(1.5)
+    try:
+        start_server(server_port)
+    except Exception as exc:
+        print(f"[ZeroMic] 无法启动服务: {exc}")
+        sys.exit(1)
 
     icon_path = None
     for icon_name in ('icon.ico', 'icon.png', 'icon.icns'):
@@ -288,10 +355,9 @@ if __name__ == '__main__':
 
     run_desktop(
         platform=platform,
-        port=SERVER_PORT,
-        url=f'https://{get_lan_ip()}:{SERVER_PORT}',
         version=VERSION,
         webui_dir=WEBUI_DIR,
         icon_path=icon_path,
+        server=ServerControl(),
     )
 

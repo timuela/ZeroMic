@@ -15,6 +15,24 @@ class WindowsPlatform(BasePlatform):
     def driver_match_keyword(self) -> str:
         return 'cable input'
 
+    def list_lan_ips(self) -> list[str]:
+        """列出所有 IPv4 地址，包含 VPN / Tailscale 等虚拟网卡。"""
+        ps = (
+            "Get-NetIPAddress -AddressFamily IPv4 | "
+            "Where-Object { $_.IPAddress -notlike '127.*' -and "
+            "$_.IPAddress -notlike '169.254.*' } | "
+            "Select-Object -ExpandProperty IPAddress"
+        )
+        try:
+            cmd = ['powershell', '-NoProfile', '-Command', ps]
+            output = subprocess.check_output(
+                cmd, text=True, creationflags=subprocess.CREATE_NO_WINDOW
+            )
+            return [line.strip() for line in output.splitlines() if line.strip()]
+        except Exception as e:
+            print("List LAN IPs Error:", e)
+            return []
+
     def is_admin(self) -> bool:
         try:
             return bool(ctypes.windll.shell32.IsUserAnAdmin())

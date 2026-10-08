@@ -9,8 +9,12 @@
     <string name="notification_action_unmute">Unmute</string>
 
     <string name="host_status">PC connection</string>
+    <string name="hosts">Hosts</string>
+    <string name="hosts_empty">No saved hosts yet</string>
+    <string name="host_save">Save this address</string>
+    <string name="host_delete">Delete this host</string>
     <string name="address_label">PC address (IP:port)</string>
-    <string name="address_hint">192.168.1.10:5000</string>
+    <string name="address_hint">192.168.1.10 (port defaults to 5000)</string>
     <string name="connect">Connect</string>
     <string name="disconnect">Disconnect</string>
     <string name="gain">Gain</string>

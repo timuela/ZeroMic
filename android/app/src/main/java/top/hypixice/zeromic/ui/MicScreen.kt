@@ -17,14 +17,20 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MicOff
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
@@ -49,12 +55,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import top.hypixice.zeromic.MicPhase
 import top.hypixice.zeromic.MicState
 import top.hypixice.zeromic.R
+import top.hypixice.zeromic.data.HostProfile
 
 @Composable
 fun MicScreen(viewModel: MicViewModel) {
     val context = LocalContext.current
     val state by viewModel.state.collectAsStateWithLifecycle()
     var errorText by remember { mutableStateOf<String?>(null) }
+    var hostsOpen by remember { mutableStateOf(false) }
 
     val runtimePermissions = remember {
         buildList {
@@ -121,6 +129,66 @@ fun MicScreen(viewModel: MicViewModel) {
             StatusCard(state)
 
             Spacer(Modifier.height(24.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box {
+                    OutlinedButton(onClick = { hostsOpen = true }, enabled = !active) {
+                        Text("${stringResource(R.string.hosts)} (${viewModel.profiles.size})")
+                    }
+                    DropdownMenu(
+                        expanded = hostsOpen,
+                        onDismissRequest = { hostsOpen = false }
+                    ) {
+                        if (viewModel.profiles.isEmpty()) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.hosts_empty)) },
+                                onClick = {},
+                                enabled = false
+                            )
+                        }
+                        viewModel.profiles.forEach { profile ->
+                            DropdownMenuItem(
+                                text = { Text(profile.address) },
+                                onClick = {
+                                    viewModel.selectProfile(profile)
+                                    hostsOpen = false
+                                }
+                            )
+                        }
+                        HorizontalDivider()
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.host_save)) },
+                            enabled = viewModel.address.isNotBlank(),
+                            leadingIcon = {
+                                Icon(Icons.Filled.Add, contentDescription = null)
+                            },
+                            onClick = {
+                                viewModel.saveCurrentProfile()
+                                hostsOpen = false
+                            }
+                        )
+                        if (viewModel.hasProfileFor(viewModel.address)) {
+                            val current = viewModel.address.trim()
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.host_delete)) },
+                                leadingIcon = {
+                                    Icon(Icons.Filled.Delete, contentDescription = null)
+                                },
+                                onClick = {
+                                    viewModel.deleteProfile(HostProfile(current, current))
+                                    hostsOpen = false
+                                }
+                            )
+                        }
+                    }
+                }
+                Spacer(Modifier.weight(1f))
+            }
+
+            Spacer(Modifier.height(12.dp))
 
             OutlinedTextField(
                 value = viewModel.address,

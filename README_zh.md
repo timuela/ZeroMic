@@ -65,23 +65,29 @@
 6. 在游戏或语音软件的设置中，将 **麦克风输入设备** 更改为软件提示的虚拟设备名称。
 7. 开始说话吧！
 
-## 🖥️ 电脑端客户端
+## 🖥️ ZeroMic Host — 电脑端（便携版）
 
 电脑端已经是一个**原生 Qt 应用**（PySide6），不再是网页。它在本机运行 HTTPS / Socket.IO 信令服务，
 用 `aiortc` 作为 WebRTC 的 answerer 接听，并通过 `sounddevice` 把解码后的音频直接写入虚拟声卡。
 不再需要 WebView2，也不再依赖浏览器。
 
+发布文件名为 `ZeroMic-Host-Portable-<版本>-<平台>`，免安装，直接运行。
+
 - 原生窗口 + 系统托盘（显示 / 静音 / 退出）。
 - 由 `aiortc` 负责 WebRTC 接听；仅使用局域网宿主候选（host candidate），秒连。
+- 列出本机**所有**网卡地址（Wi-Fi、有线、VPN、Tailscale），每个地址都有独立二维码，
+  手机连哪个网络都能扫到。
+- 可在窗口内修改监听端口，设置会被记住。
 - 自动匹配虚拟设备（`CABLE Input` / `zeromic_sink` / `BlackHole`）。
 - 音量与静音直接作用于音频回调，响应即时。
 
 > **构建需要 Python 3.11–3.13。** PySide6 目前尚不支持 3.14。
 
-## 📱 原生 Android 客户端
+## 📱 ZeroMic Client — Android 客户端
 
 浏览器客户端可用，但 Android 浏览器（Chrome、Brave 等）在息屏后会挂起页面，导致麦克风流被中断。
-如需在息屏后稳定传输，可使用 [`android/`](./android) 目录下的原生客户端。
+如需在息屏后稳定传输，可使用 [`android/`](./android) 目录下的原生客户端，发布文件名为
+`ZeroMic-Client-<版本>.apk`。
 
 - 以前台服务 + 部分唤醒锁（Partial Wake Lock）+ Wi-Fi 锁运行，息屏后麦克风仍持续传输。
 - 与网页客户端使用完全相同的 Socket.IO + WebRTC 信令协议，电脑端无需任何改动；网络路径变化时还会通过 ICE 重启自动恢复会话。
