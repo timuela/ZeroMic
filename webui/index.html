@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ZeroMic - 客户端</title>
-    
+    <title>ZeroMic - Client</title>
+
     <link rel="stylesheet" href="./lib/mdui.css">
     <script src="./lib/mdui.global.js"></script>
     <link href="./lib/mdui-icons.css" rel="stylesheet">
@@ -12,117 +12,119 @@
 
     <style>
         :root {
-            
-            --color-initial: #757575;          
-            --color-muted: rgb(255, 179, 174); 
+            --color-initial: #757575;
+            --color-muted: rgb(255, 179, 174);
             --color-bg: #121212;
             --color-card: #1e1e1e;
+            --accent: rgb(var(--mdui-color-primary));
         }
 
+        html, body { height: 100%; }
+
         body {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
             margin: 0;
             background-color: var(--color-bg);
             font-family: 'Roboto', sans-serif;
             overflow: hidden;
+            color: rgba(255, 255, 255, 0.9);
         }
 
+        /* One screen, no scroll: the mic pad takes the leftover space. */
         .app-container {
-            width: 100%;
-            max-width: 400px;
-            padding: 24px;
+            height: 100dvh;
+            max-width: 420px;
+            margin: 0 auto;
+            padding: 14px 20px 20px;
             box-sizing: border-box;
             display: flex;
             flex-direction: column;
-            align-items: center;
+            gap: 12px;
         }
 
-        .header { text-align: center; margin-bottom: 24px; width: 100%; }
-        .header h1 { font-size: 28px; margin: 0; font-weight: 500; letter-spacing: 1px; color: rgba(255,255,255,0.9); }
-        .header p { font-size: 13px; opacity: 0.5; margin: 6px 0 0; font-family: monospace; }
+        .header { display: flex; align-items: center; gap: 8px; }
+        .header .title { font-size: 20px; font-weight: 500; }
+        .header .version { font-size: 11px; opacity: 0.5; font-family: monospace; }
+        .header .spacer { flex: 1; }
 
-        .status-card {
+        .card {
             background-color: var(--color-card);
-            border-radius: 24px;
-            padding: 16px 24px;
+            border-radius: 20px;
+            padding: 14px 18px;
             width: 100%;
             box-sizing: border-box;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 20px; 
-        }
-        .status-info { display: flex; flex-direction: column; }
-        .status-title { font-size: 13px; opacity: 0.6; }
-        .status-value { font-size: 16px; font-weight: bold; margin-top: 6px; display: flex; align-items: center; gap: 8px;}
-        .dot { width: 10px; height: 10px; border-radius: 50%; }
-        .dot.disconnected { background-color: #888; }
-        .dot.connected { background-color: #4CAF50; box-shadow: 0 0 8px #4CAF50; }
-
-        
-        .control-card {
-            width: 100%;
-            background-color: var(--color-card);
-            border-radius: 24px;
-            padding: 16px 20px;
-            box-sizing: border-box;
-            margin-bottom: 30px;
-            display: flex;
-            align-items: center;
-            gap: 16px;
         }
 
-        
-        .mic-section {
-            position: relative;
-            width: 240px;
-            height: 240px;
+        .status-card { display: flex; align-items: center; justify-content: space-between; }
+        .status-title { font-size: 13px; opacity: 0.6; display: block; }
+        .status-value { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-weight: bold; }
+        .dot { width: 10px; height: 10px; border-radius: 50%; background: #888; flex: none; }
+        .dot.connected { background: #4CAF50; box-shadow: 0 0 8px #4CAF50; }
+
+        .gain-head { display: flex; justify-content: space-between; font-size: 14px; opacity: 0.8; margin-bottom: 2px; }
+
+        .mic-pad {
+            flex: 1;
+            min-height: 150px;
             display: flex;
+            align-items: center;
             justify-content: center;
-            align-items: center;
         }
-
-        .volume-ring {
+        .mic-wrap {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            max-height: 260px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .mic-halo {
             position: absolute;
-            width: 140px;
-            height: 140px;
+            width: 64px;
+            height: 64px;
             border-radius: 50%;
-            opacity: 0.2;
-            z-index: 0;
-            transition: transform 0.05s linear;
+            background: var(--color-initial);
+            opacity: 0;
+            transform: scale(1);
+            transition: transform 0.06s linear, opacity 0.06s linear;
             pointer-events: none;
         }
+        .mic-halo.active { background: var(--accent); }
+        .mic-halo.muted { background: var(--color-muted); }
 
         .mic-button {
-            width: 140px;
-            height: 140px;
-            border-radius: 50% !important;
-            z-index: 1;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            border: none;
+            background: var(--color-initial);
+            color: #fff;
             display: flex;
-            justify-content: center;
             align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s;
         }
+        .mic-button mdui-icon { font-size: 30px; }
+        .mic-button.active { background: var(--accent); color: rgb(var(--mdui-color-on-primary)); }
+        .mic-button.muted { background: var(--color-muted); color: #4a0005; }
 
-        
-        
-        .mic-button.initial { background-color: var(--color-initial) !important; color: #fff !important; }
-        .volume-ring.initial { background-color: transparent; opacity: 0; }
+        .connect-button {
+            height: 52px;
+            width: 100%;
+            border: none;
+            border-radius: 26px;
+            font-size: 16px;
+            font-weight: 500;
+            color: #fff;
+            background: var(--accent);
+            cursor: pointer;
+        }
+        .connect-button.active { background: #2a2a2a; color: rgba(255, 255, 255, 0.9); }
+        .connect-button:disabled { opacity: 0.6; }
 
-        
-        .mic-button.active { background-color: rgb(var(--mdui-color-primary)) !important; color: rgb(var(--mdui-color-on-primary)) !important; }
-        .volume-ring.active { background-color: rgb(var(--mdui-color-primary)); }
+        .hint { min-height: 16px; text-align: center; font-size: 13px; }
 
-        
-        .mic-button.muted { background-color: var(--color-muted) !important; color: #4a0005 !important; }
-        .volume-ring.muted { background-color: var(--color-muted); transform: scale(1) !important; opacity: 0.1; }
-
-        .status-text { margin-top: 32px; font-size: 16px; letter-spacing: 1px; transition: color 0.3s; font-weight: 500; }
-
-        
         .settings-panel {
             width: 300px; max-width: 85vw; height: 100%; padding: 20px;
             box-sizing: border-box; display: flex; flex-direction: column; gap: 22px;
@@ -145,44 +147,47 @@
 </head>
 <body>
 
-
 <div class="app-container">
-    <div class="header" style="position: relative;">
-        <mdui-button-icon id="btn-settings" icon="menu" style="position: absolute; right: 0; top: 0;"></mdui-button-icon>
-        
-        <h1><mdui-icon name="podcasts" style="font-size: 20px; margin-right: 10px; color: rgb(var(--mdui-color-primary));"></mdui-icon>ZeroMic</h1>
-        <p>Client Mode | <span id="app-version">&mdash;</span> | by：Hypixice</p>
+    <div class="header">
+        <mdui-icon name="podcasts" style="font-size: 20px; color: var(--accent);"></mdui-icon>
+        <span class="title">ZeroMic</span>
+        <span class="version" id="app-version">&mdash;</span>
+        <span class="spacer"></span>
+        <mdui-button-icon id="btn-settings" icon="menu"></mdui-button-icon>
     </div>
 
-    <div class="status-card">
-        <div class="status-info">
-            <span class="status-title" data-i18n="m_host_status">主机连接状态</span>
+    <div class="card status-card">
+        <div>
+            <span class="status-title" data-i18n="m_host_status">Host Connection</span>
             <span class="status-value">
-                <div class="dot disconnected" id="connection-dot"></div>
-                <span id="connection-text" data-i18n="m_wait_conn">等待连接...</span>
+                <span class="dot" id="connection-dot"></span>
+                <span id="connection-text" data-i18n="m_wait_conn">Waiting for connection...</span>
             </span>
         </div>
         <mdui-icon name="computer" style="opacity: 0.7;"></mdui-icon>
     </div>
 
-    <div class="control-card" style="padding: 12px 20px;">
-        <mdui-text-field id="pin-input" label="PIN" data-i18n="m_pin_label" data-i18n-target="label" type="number" style="width: 100%;"></mdui-text-field>
+    <mdui-text-field id="pin-input" label="PIN" data-i18n="m_pin_label" data-i18n-target="label" type="number" style="width: 100%;"></mdui-text-field>
+
+    <div class="card">
+        <div class="gain-head">
+            <span data-i18n="m_gain">Gain</span>
+            <span id="gain-value">1.0×</span>
+        </div>
+        <mdui-slider id="gain-slider" min="0" max="3" step="0.1" value="1" style="width: 100%;"></mdui-slider>
     </div>
 
-    <div class="control-card">
-        <mdui-icon name="volume_down" style="opacity: 0.7;"></mdui-icon>
-        <mdui-slider id="gain-slider" min="0" max="3" step="0.1" value="1" style="flex-grow: 1;"></mdui-slider>
-        <mdui-icon name="volume_up" style="opacity: 0.7;"></mdui-icon>
+    <div class="mic-pad">
+        <div class="mic-wrap">
+            <div class="mic-halo" id="mic-halo"></div>
+            <button class="mic-button" id="mic-toggle">
+                <mdui-icon name="mic_none" id="mic-icon"></mdui-icon>
+            </button>
+        </div>
     </div>
 
-    <div class="mic-section">
-        <div class="volume-ring initial" id="volume-ring"></div>
-        <mdui-button-icon class="mic-button initial" id="mic-toggle">
-            <mdui-icon name="mic_none" id="mic-icon" style="font-size: 48px;"></mdui-icon>
-        </mdui-button-icon>
-    </div>
-    
-    <div class="status-text" id="status-label" style="color: var(--color-initial);" data-i18n="m_tap_connect">点击授权并连接</div>
+    <div class="hint" id="status-label" data-i18n="m_tap_connect"></div>
+    <button class="connect-button" id="connect-button" data-i18n="m_connect">Connect</button>
 </div>
 
 <mdui-navigation-drawer id="settings-drawer" placement="right">
@@ -209,64 +214,60 @@
 </mdui-navigation-drawer>
 
 <script>
-    mdui.setColorScheme('#4285F4'); 
+    mdui.setColorScheme('#4285F4');
 
     const micBtn = document.getElementById('mic-toggle');
     const micIcon = document.getElementById('mic-icon');
+    const micHalo = document.getElementById('mic-halo');
     const statusLabel = document.getElementById('status-label');
-    const volumeRing = document.getElementById('volume-ring');
+    const connectBtn = document.getElementById('connect-button');
     const gainSlider = document.getElementById('gain-slider');
-const socket = io(window.location.origin);
-    let peerConnection;
-    const rtcConfig = { iceServers: [] }; 
+    const gainValue = document.getElementById('gain-value');
 
+    // autoConnect:false - nothing happens until the user presses Connect.
+    const socket = io(window.location.origin, { autoConnect: false });
+    const rtcConfig = { iceServers: [] };
+    let peerConnection = null;
+    let localOffer = null;
 
+    let currentState = 'idle'; // idle | connecting | active | muted
+    let audioContext, analyser, dataArray, source, gainNode, micStream;
+    let animationId = null;
+    let wakeLock = null;
 
     let i18nData = {};
-    // 默认英文，记住用户上一次的选择
     let currentLang = (() => { try { return localStorage.getItem('zeromic_lang') || 'en_us'; } catch (e) { return 'en_us'; } })();
 
-    // 翻译辅助函数 (供 JS 动态文字使用)
-    function t(key) {
-        return i18nData[key] || key;
-    }
+    function t(key) { return i18nData[key] || key; }
 
-    // 渲染页面静态文本
     function renderI18n() {
         document.querySelectorAll('[data-i18n]').forEach(el => {
             const key = el.getAttribute('data-i18n');
-            if (i18nData[key]) {
-                el.innerHTML = i18nData[key];
-            }
+            if (i18nData[key]) el.innerHTML = i18nData[key];
         });
-        
         const langSelect = document.getElementById('settings-language-select');
         if (langSelect && langSelect.value !== currentLang) langSelect.value = currentLang;
+        updateUI();
     }
 
-    // 从服务器异步拉取 JSON (复用电脑端的 lang 文件夹)
     async function loadLanguage(lang) {
         try {
-            // 加入时间戳防止手机浏览器强缓存
             const response = await fetch(`/lang/${lang}.json?t=${new Date().getTime()}`);
-            if (!response.ok) throw new Error('网络响应异常');
-            
+            if (!response.ok) throw new Error('bad response');
             i18nData = await response.json();
             currentLang = lang;
-            renderI18n(); 
+            renderI18n();
         } catch (error) {
-            console.error(`加载语言包 ${lang}.json 失败:`, error);
+            console.error(`Failed to load ${lang}.json:`, error);
         }
     }
 
-    // 切换到指定语言并记住选择
     function setLanguage(lang) {
         if (!lang || lang === currentLang) return;
         try { localStorage.setItem('zeromic_lang', lang); } catch (e) {}
         loadLanguage(lang);
     }
 
-    // 设置侧边栏
     const settingsDrawer = document.getElementById('settings-drawer');
     document.getElementById('btn-settings').addEventListener('click', () => { settingsDrawer.open = true; });
     document.getElementById('btn-settings-close').addEventListener('click', () => { settingsDrawer.open = false; });
@@ -277,79 +278,197 @@ const socket = io(window.location.origin);
         return el ? (el.value || '').trim() : '';
     }
 
-    function joinSession() {
-        socket.emit('join', { role: 'mobile', pin: pinValue() });
+    function setStatus(text, color) {
+        const el = document.getElementById('connection-text');
+        const dot = document.getElementById('connection-dot');
+        el.innerText = text;
+        el.style.color = color || '';
+        dot.classList.toggle('connected', color === '#4CAF50');
     }
 
+    function updateUI() {
+        connectBtn.classList.toggle('active', currentState === 'active' || currentState === 'muted');
+        connectBtn.disabled = currentState === 'connecting';
+        connectBtn.innerText = (currentState === 'active' || currentState === 'muted')
+            ? t('m_disconnect') : t('m_connect');
+
+        micBtn.className = 'mic-button ' + currentState;
+        micHalo.className = 'mic-halo ' + currentState;
+
+        if (currentState === 'active') {
+            micIcon.setAttribute('name', 'mic');
+            statusLabel.innerText = t('m_mic_active');
+            statusLabel.style.color = 'var(--accent)';
+        } else if (currentState === 'muted') {
+            micIcon.setAttribute('name', 'mic_off');
+            statusLabel.innerText = t('m_mic_muted');
+            statusLabel.style.color = 'var(--color-muted)';
+        } else if (currentState === 'connecting') {
+            micIcon.setAttribute('name', 'mic_none');
+            statusLabel.innerText = t('m_connecting');
+            statusLabel.style.color = '';
+        } else {
+            micIcon.setAttribute('name', 'mic_none');
+            statusLabel.innerText = t('m_tap_connect');
+            statusLabel.style.color = '';
+        }
+    }
+
+    async function requestWakeLock() {
+        if ('wakeLock' in navigator) {
+            try { wakeLock = await navigator.wakeLock.request('screen'); } catch (err) {}
+        }
+    }
+    function releaseWakeLock() {
+        if (wakeLock !== null) { wakeLock.release().then(() => { wakeLock = null; }); }
+    }
+
+    // ---- level feedback ----------------------------------------------------
+    function drawLevel() {
+        if (currentState !== 'active') return;
+        animationId = requestAnimationFrame(drawLevel);
+        analyser.getByteTimeDomainData(dataArray);
+        let sum = 0;
+        for (let i = 0; i < dataArray.length; i++) {
+            const v = (dataArray[i] - 128) / 128;
+            sum += v * v;
+        }
+        const rms = Math.sqrt(sum / dataArray.length);
+        const level = Math.min(1, rms * 4); // scale up or the halo barely moves
+        micHalo.style.opacity = (0.15 + level * 0.45).toFixed(3);
+        micHalo.style.transform = `scale(${(1 + level * 1.4).toFixed(3)})`;
+    }
+    function stopLevel() {
+        if (animationId !== null) { cancelAnimationFrame(animationId); animationId = null; }
+        micHalo.style.opacity = '0';
+        micHalo.style.transform = 'scale(1)';
+    }
+
+    // ---- session -----------------------------------------------------------
+    async function startCapture() {
+        micStream = await navigator.mediaDevices.getUserMedia({ audio: {
+            echoCancellation: true, noiseSuppression: true, autoGainControl: false
+        }});
+
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioContext.state === 'suspended') await audioContext.resume();
+        analyser = audioContext.createAnalyser();
+        analyser.fftSize = 256;
+        dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+        source = audioContext.createMediaStreamSource(micStream);
+        gainNode = audioContext.createGain();
+        gainNode.gain.value = parseFloat(gainSlider.value);
+        source.connect(gainNode);
+        gainNode.connect(analyser);
+
+        peerConnection = new RTCPeerConnection(rtcConfig);
+        peerConnection.onicecandidate = (event) => {
+            if (event.candidate) socket.emit('ice_candidate', event.candidate);
+        };
+
+        const dest = audioContext.createMediaStreamDestination();
+        gainNode.connect(dest);
+        dest.stream.getTracks().forEach(track => peerConnection.addTrack(track, dest.stream));
+
+        const offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
+        localOffer = { type: 'offer', sdp: peerConnection.localDescription.sdp };
+    }
+
+    function teardown() {
+        stopLevel();
+        releaseWakeLock();
+        try { if (peerConnection) peerConnection.close(); } catch (e) {}
+        peerConnection = null;
+        localOffer = null;
+        try { if (micStream) micStream.getTracks().forEach(t => t.stop()); } catch (e) {}
+        micStream = null;
+        try { if (audioContext) audioContext.close(); } catch (e) {}
+        audioContext = null; analyser = null; dataArray = null; source = null; gainNode = null;
+    }
+
+    async function connect() {
+        if (currentState !== 'idle') return;
+        currentState = 'connecting';
+        setStatus(t('m_wait_conn'));
+        updateUI();
+        try {
+            await startCapture();
+        } catch (err) {
+            currentState = 'idle';
+            teardown();
+            updateUI();
+            mdui.alert({ headline: t('m_alert_title'), description: t('m_alert_desc'), confirmText: t('m_alert_ok') });
+            return;
+        }
+        socket.connect();
+    }
+
+    function disconnect() {
+        socket.disconnect();
+        teardown();
+        currentState = 'idle';
+        setStatus(t('m_wait_conn'));
+        updateUI();
+    }
+
+    connectBtn.addEventListener('click', () => {
+        if (currentState === 'active' || currentState === 'muted') disconnect();
+        else connect();
+    });
+
     socket.on('connect', () => {
-        joinSession();
-        document.getElementById('connection-dot').classList.replace('disconnected', 'connected');
-        const text = document.getElementById('connection-text');
-        text.innerText = t('m_connected');
-        text.style.color = '#4CAF50';
+        socket.emit('join', { role: 'mobile', pin: pinValue() });
+        if (localOffer) { socket.emit('offer', localOffer); localOffer = null; }
+        setStatus(t('m_connected'), '#4CAF50');
+        currentState = 'active';
+        updateUI();
+        drawLevel();
+        requestWakeLock();
+    });
+
+    socket.on('disconnect', () => {
+        if (currentState === 'active' || currentState === 'muted') {
+            setStatus(t('m_wait_conn'));
+        }
     });
 
     socket.on('auth_failed', () => {
-        const dot = document.getElementById('connection-dot');
-        dot.classList.remove('connected');
-        dot.classList.add('disconnected');
-        const text = document.getElementById('connection-text');
-        text.innerText = t('m_pin_required');
-        text.style.color = '#ff9800';
-        mdui.alert({
-            headline: t('m_pin_title'),
-            description: t('m_pin_wrong'),
-            confirmText: t('m_alert_ok')
-        });
+        setStatus(t('m_pin_required'), '#ff9800');
+        disconnect();
+        mdui.alert({ headline: t('m_pin_title'), description: t('m_pin_wrong'), confirmText: t('m_alert_ok') });
     });
 
-    const pinInput = document.getElementById('pin-input');
-    if (pinInput) {
-        pinInput.addEventListener('change', () => {
-            if (socket.connected) joinSession();
-        });
-    }
-
     socket.on('answer', async (data) => {
-        if(peerConnection) {
-            await peerConnection.setRemoteDescription(new RTCSessionDescription(data));
-        }
+        if (peerConnection) await peerConnection.setRemoteDescription(new RTCSessionDescription(data));
     });
 
     socket.on('ice_candidate', (data) => {
-        if(peerConnection) {
-            peerConnection.addIceCandidate(new RTCIceCandidate(data));
+        if (peerConnection) peerConnection.addIceCandidate(new RTCIceCandidate(data));
+    });
+
+    micBtn.addEventListener('click', () => {
+        if (currentState === 'active') {
+            currentState = 'muted';
+            if (gainNode) gainNode.gain.value = 0;
+            releaseWakeLock();
+            updateUI();
+        } else if (currentState === 'muted') {
+            currentState = 'active';
+            if (gainNode) gainNode.gain.value = parseFloat(gainSlider.value);
+            requestWakeLock();
+            updateUI();
+            drawLevel();
         }
     });
-    
-    let currentState = 'initial'; 
-    let audioContext, analyser, dataArray, source, gainNode;
-    let animationId;
-    let wakeLock = null;
 
-    
-    async function requestWakeLock() {
-        if ('wakeLock' in navigator) {
-            try {
-                wakeLock = await navigator.wakeLock.request('screen');
-                console.log('屏幕常亮已开启');
-            } catch (err) {
-                console.error(`唤醒锁失败: ${err.name}, ${err.message}`);
-            }
-        }
-    }
+    gainSlider.addEventListener('input', (e) => {
+        const val = parseFloat(e.target.value);
+        gainValue.innerText = val.toFixed(1) + '×';
+        if (gainNode && currentState === 'active') gainNode.gain.value = val;
+    });
 
-    function releaseWakeLock() {
-        if (wakeLock !== null) {
-            wakeLock.release().then(() => {
-                wakeLock = null;
-                console.log('屏幕常亮已释放');
-            });
-        }
-    }
-
-
-    // 版本号从服务器读取，不写死在页面里
     async function syncAppInfo() {
         try {
             const response = await fetch(`/api/info?t=${new Date().getTime()}`);
@@ -359,15 +478,14 @@ const socket = io(window.location.origin);
             if (label && data.version) label.innerText = data.version;
             const settingsVersion = document.getElementById('settings-version-text');
             if (settingsVersion && data.version) settingsVersion.innerText = `v${data.version}`;
-        } catch (error) {
-            console.error('获取版本信息失败:', error);
-        }
+        } catch (error) {}
     }
 
     document.addEventListener('DOMContentLoaded', async () => {
-            await loadLanguage(currentLang);
-            syncAppInfo();
-        });
+        await loadLanguage(currentLang);
+        syncAppInfo();
+        updateUI();
+    });
 
     document.addEventListener('visibilitychange', async () => {
         if (wakeLock !== null && document.visibilityState === 'visible' && currentState === 'active') {
@@ -375,128 +493,8 @@ const socket = io(window.location.origin);
         }
     });
 
-    
-    function drawVolume() {
-        if (currentState !== 'active') return;
-        
-        animationId = requestAnimationFrame(drawVolume);
-        analyser.getByteFrequencyData(dataArray);
-        
-        let sum = 0;
-        for(let i = 0; i < dataArray.length; i++) { sum += dataArray[i]; }
-        let average = sum / dataArray.length;
-        
-        
-        let scale = 1 + (Math.max(0, average - 10) / 100); 
-        volumeRing.style.transform = `scale(${scale})`;
-    }
-
-    
-    micBtn.addEventListener('click', async () => {
-        
-        if (currentState === 'initial') {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: {
-                    echoCancellation: true,
-                    noiseSuppression: true,
-                    autoGainControl: false 
-                }});
-                
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                analyser = audioContext.createAnalyser();
-                
-                
-                source = audioContext.createMediaStreamSource(stream);
-                gainNode = audioContext.createGain();
-                gainNode.gain.value = gainSlider.value; 
-
-                source.connect(gainNode);
-                gainNode.connect(analyser);
-                peerConnection = new RTCPeerConnection(rtcConfig);
-                    
-                peerConnection.onicecandidate = (event) => {
-                    if (event.candidate) socket.emit('ice_candidate', event.candidate);
-                };
-
-                
-                const dest = audioContext.createMediaStreamDestination();
-                gainNode.connect(dest);
-                dest.stream.getTracks().forEach(track => peerConnection.addTrack(track, dest.stream));
-
-                
-                const offer = await peerConnection.createOffer();
-                await peerConnection.setLocalDescription(offer);
-                socket.emit('offer', offer);
-                analyser.fftSize = 256;
-                dataArray = new Uint8Array(analyser.frequencyBinCount);
-
-                
-                currentState = 'active';
-                updateUI();
-                drawVolume();
-                requestWakeLock(); 
-
-            } catch (err) {
-                mdui.alert({ 
-                    headline: t('m_alert_title'), 
-                    description: t('m_alert_desc'), 
-                    confirmText: t('m_alert_ok') 
-                });
-            }
-        } 
-        
-        else if (currentState === 'active') {
-            currentState = 'muted';
-            updateUI();
-            releaseWakeLock(); 
-            
-            
-            if (gainNode) gainNode.gain.value = 0;
-        } 
-        
-        else if (currentState === 'muted') {
-            currentState = 'active';
-            updateUI();
-            requestWakeLock();
-            
-            
-            if (gainNode) gainNode.gain.value = gainSlider.value;
-            drawVolume();
-        }
-    });
-
-    
-    gainSlider.addEventListener('input', (e) => {
-        const val = parseFloat(e.target.value);
-        
-        if (gainNode && currentState === 'active') {
-            gainNode.gain.value = val;
-        }
-    });
-
-    
-function updateUI() {
-        micBtn.className = `mic-button ${currentState}`;
-        volumeRing.className = `volume-ring ${currentState}`;
-        
-        if (currentState === 'active') {
-            micIcon.setAttribute('name', 'mic');
-            statusLabel.innerText = t('m_mic_active'); // 替换这里
-            statusLabel.style.color = 'rgb(var(--mdui-color-primary))';
-        } else if (currentState === 'muted') {
-            micIcon.setAttribute('name', 'mic_off');
-            statusLabel.innerText = t('m_mic_muted'); // 替换这里
-            statusLabel.style.color = 'var(--color-muted)';
-        }
-    }
-
-    
-    setTimeout(() => {
-        document.getElementById('connection-dot').classList.replace('disconnected', 'connected');
-        const text = document.getElementById('connection-text');
-        text.innerText = t('m_connected');
-        text.style.color = '#4CAF50';
-    }, 1500);
+    // Never auto-connect: the page only joins the host after Connect is pressed.
+    window.addEventListener('pagehide', teardown);
 </script>
 
 </body>
