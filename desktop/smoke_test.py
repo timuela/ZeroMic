@@ -111,10 +111,6 @@ try:
     # long address list or the microphone pad used to raise the layout minimum,
     # so Qt grew the window and the user's resize did not stick.
     window.set_addresses([f"https://10.0.0.{i}:5000" for i in range(1, 9)])
-    window.fit_to_content()
-    needed = window.content_width_needed()
-    check("default width fits the content (nothing clipped)",
-          window.width() >= needed, f"needs {needed}, window {window.width()}")
     window.set_presence(False)
     disconnected = window.minimumSizeHint().height()
     window.set_presence(True)

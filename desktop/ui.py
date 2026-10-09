@@ -216,7 +216,7 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------
     def _build(self):
         self.setWindowTitle("ZeroMic Desktop")
-        self.resize(420, 820)
+        self.resize(520, 820)
         self.setWindowIcon(QApplication.windowIcon())
 
         content = QWidget()
@@ -535,23 +535,6 @@ class MainWindow(QMainWindow):
         self._port_input.blockSignals(True)
         self._port_input.setValue(int(port))
         self._port_input.blockSignals(False)
-
-    def content_width_needed(self):
-        """Width the layout needs, i.e. the point at which nothing is clipped."""
-        content = self.centralWidget().widget()
-        if content is None:
-            return 0
-        return content.minimumSizeHint().width() + 28
-
-    def fit_to_content(self, height=820):
-        """Widen to fit the content - a full https://ip:port is long - but
-        never past the screen. Narrower than this the scroll area takes over."""
-        needed = self.content_width_needed()
-        ceiling = 1200
-        screen = QApplication.primaryScreen()
-        if screen is not None:
-            ceiling = max(420, screen.availableGeometry().width() - 80)
-        self.resize(min(max(420, needed), ceiling), height)
 
     def _on_apply_port(self):
         self.portChangeRequested.emit(self._port_input.value())

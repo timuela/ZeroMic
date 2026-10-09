@@ -219,9 +219,6 @@ class DesktopApp:
         self._apply_saved_port()
         self._refresh_addresses()
         self._refresh_devices()
-        # Addresses are only known now, and they set how wide the window needs
-        # to be, so size it once here rather than at construction.
-        self._window.fit_to_content()
         threading.Thread(target=self._check_driver, daemon=True).start()
 
     def _apply_saved_port(self):
