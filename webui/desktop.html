@@ -554,6 +554,31 @@ async function syncAppInfo() {
         } catch (e) { console.error("Failed to get platform info", e); }
     }
 
+// Windows reports some endpoints twice: once with the name cut to roughly 31
+// characters, once in full. They are the same device, so list it once, keeping
+// the untruncated name - two entries that differ only by a cut-off tail are
+// impossible to tell apart.
+function dedupeAudioOutputs(devices) {
+    const options = [];
+    devices.forEach(device => {
+        const label = device.label || `Unknown audio device (${device.deviceId.slice(0,5)})`;
+        const lower = label.toLowerCase();
+        const twin = options.find(candidate =>
+            candidate.lower === lower
+            || (candidate.lower.length >= 30 && lower.startsWith(candidate.lower))
+            || (lower.length >= 30 && candidate.lower.startsWith(lower))
+        );
+        if (!twin) {
+            options.push({ label: label, lower: lower, deviceId: device.deviceId });
+        } else if (label.length > twin.label.length) {
+            twin.label = label;
+            twin.lower = lower;
+            twin.deviceId = device.deviceId;
+        }
+    });
+    return options;
+}
+
 async function loadAudioDevices() {
         try {
             await new Promise(resolve => setTimeout(resolve, 1500));
@@ -566,18 +591,18 @@ async function loadAudioDevices() {
             outputSelect.innerHTML = ''; 
             let targetDeviceId = 'default'; 
             
-            audioOutputs.forEach(device => {
+            dedupeAudioOutputs(audioOutputs).forEach(option => {
                 const item = document.createElement('mdui-menu-item');
-                item.value = device.deviceId;
-                item.innerText = device.label || `Unknown audio device (${device.deviceId.slice(0,5)})`; 
+                item.value = option.deviceId;
+                item.innerText = option.label; 
                 // Fallback if the menu is capped by the viewport width.
-                item.title = item.innerText;
+                item.title = option.label;
                 outputSelect.appendChild(item);
 
                 // Smart-match CABLE Input
                 const keyword = platformInfo?.driver_match_keyword || 'cable input';
-                if (device.label.toLowerCase().includes(keyword)) {
-                    targetDeviceId = device.deviceId;
+                if (option.label.toLowerCase().includes(keyword)) {
+                    targetDeviceId = option.deviceId;
                 }
             });
 

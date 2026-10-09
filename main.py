@@ -17,7 +17,7 @@ else:
     base_path = os.path.dirname(os.path.abspath(__file__))
 
 # Constants
-VERSION = "v0.1.29"
+VERSION = "v0.1.30"
 DEFAULT_PORT = 5000
 
 # Single-instance detection
