@@ -437,15 +437,18 @@ def run_desktop(platform, version, webui_dir, icon_path=None, server=None):
     app.setApplicationName("ZeroMic")
     app.setQuitOnLastWindowClosed(False)
 
-    # Without an explicit AppUserModelID Windows groups the window under the
-    # bootloader process and shows a generic taskbar icon.
-    if sys.platform == "win32":
-        try:
-            import ctypes
-
-            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("ZeroMic.Host")
-        except Exception:
-            pass
+    # Deliberately no SetCurrentProcessExplicitAppUserModelID() here.
+    #
+    # Windows 11 resolves a taskbar button's icon from the icon registered
+    # against the process's AppUserModelID, not from the window. A portable
+    # exe has no shortcut registering one, so an explicit custom ID makes the
+    # shell fall back to the generic placeholder - and because that ID stayed
+    # the same across every build while the exe name changed, the broken entry
+    # persisted from version to version.
+    #
+    # Left alone, Windows derives the ID from the exe path, whose embedded
+    # icon is correct, and grouping still works because the onefile bootloader
+    # and the child process are the same exe.
 
     if icon_path:
         icon = QIcon(icon_path)
