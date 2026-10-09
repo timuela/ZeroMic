@@ -19,7 +19,7 @@ from PySide6.QtCore import QSettings
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication, QMessageBox
 
-from desktop.app import DesktopApp, Translator, _style_path
+from desktop.app import DesktopApp, Translator, _load_icon, _style_path
 from desktop.ui import MainWindow
 
 failures = []
@@ -80,6 +80,16 @@ print("assets:")
 check("style.qss is bundled", _style_path() is not None, str(_style_path()))
 png = QIcon(os.path.join(ROOT, "desktop", "icon.png"))
 check("desktop/icon.png loads", not png.isNull())
+
+# Windows asks the shell for 16-32px for taskbar and title-bar buttons. An
+# icon built from a single 256px source has nothing to offer at those sizes,
+# which is how the taskbar ends up drawing its generic white placeholder.
+icon_sizes = {
+    size.width()
+    for size in _load_icon(os.path.join(ROOT, "desktop", "icon.png")).availableSizes()
+}
+check("icon carries the small sizes the taskbar asks for",
+      {16, 24, 32}.issubset(icon_sizes), f"sizes={sorted(icon_sizes)}")
 
 print("window:")
 try:

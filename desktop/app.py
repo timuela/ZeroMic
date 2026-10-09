@@ -7,7 +7,7 @@ import sys
 import threading
 
 from PySide6.QtCore import QObject, QSettings, Qt, Signal
-from PySide6.QtGui import QAction, QIcon
+from PySide6.QtGui import QAction, QIcon, QPixmap
 from PySide6.QtWidgets import QApplication, QMenu, QMessageBox, QSystemTrayIcon
 
 from desktop.devices import default_output_index, find_output_index, list_output_devices
@@ -15,6 +15,25 @@ from desktop.session import DesktopSession
 from desktop.ui import MainWindow
 
 log = logging.getLogger(__name__)
+
+
+def _load_icon(path):
+    """An icon that carries the sizes Windows actually asks for.
+
+    Taskbar and title-bar buttons are 16-32px. Built from a single 256px
+    source the QIcon has no small pixmap to offer, which is how the shell
+    ends up drawing its generic placeholder, so add explicit sizes.
+    """
+    source = QPixmap(path)
+    if source.isNull():
+        return QIcon(path)
+
+    icon = QIcon()
+    for size in (16, 20, 24, 32, 40, 48, 64, 128, 256):
+        icon.addPixmap(
+            source.scaled(size, size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        )
+    return icon
 
 
 def _detect_language():
@@ -451,7 +470,7 @@ def run_desktop(platform, version, webui_dir, icon_path=None, server=None):
     # and the child process are the same exe.
 
     if icon_path:
-        icon = QIcon(icon_path)
+        icon = _load_icon(icon_path)
         if not icon.isNull():
             app.setWindowIcon(icon)
 
