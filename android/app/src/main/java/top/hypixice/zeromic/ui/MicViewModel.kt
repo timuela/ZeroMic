@@ -49,6 +49,9 @@ class MicViewModel(application: Application) : AndroidViewModel(application) {
     private val _state = MutableStateFlow(MicState(gain = prefs.gain))
     val state: StateFlow<MicState> = _state.asStateFlow()
 
+    private val _level = MutableStateFlow(0f)
+    val level: StateFlow<Float> = _level.asStateFlow()
+
     private var service: MicService? = null
     private var bound = false
     private var collectJob: Job? = null
@@ -139,7 +142,8 @@ class MicViewModel(application: Application) : AndroidViewModel(application) {
             service = svc
             collectJob?.cancel()
             collectJob = scope.launch {
-                svc.state.collect { _state.value = it }
+                launch { svc.state.collect { _state.value = it } }
+                launch { svc.level.collect { _level.value = it } }
             }
         }
 

@@ -42,6 +42,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -55,6 +56,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -65,10 +67,13 @@ import top.hypixice.zeromic.MicState
 import top.hypixice.zeromic.R
 import top.hypixice.zeromic.data.HostProfile
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.BoxScope
@@ -85,6 +90,7 @@ import androidx.compose.material3.IconButton
 fun MicScreen(viewModel: MicViewModel, onLanguageChanged: () -> Unit = {}) {
     val context = LocalContext.current
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val micLevel = viewModel.level.collectAsStateWithLifecycle()
     var errorText by remember { mutableStateOf<String?>(null) }
     var addHostOpen by remember { mutableStateOf(false) }
     var pendingDelete by remember { mutableStateOf<HostProfile?>(null) }
@@ -265,32 +271,24 @@ fun MicScreen(viewModel: MicViewModel, onLanguageChanged: () -> Unit = {}) {
                 )
             }
 
-            // The mic button absorbs whatever vertical space is left, so the
-            // page fits one screen instead of scrolling to reach Connect.
+            // The mic pad absorbs whatever vertical space is left, so the page
+            // fits one screen instead of scrolling to reach Connect. The button
+            // stays thumb-sized; the level halo around it is the real feedback.
             BoxWithConstraints(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth(),
                 contentAlignment = Alignment.Center
             ) {
-                val diameter = minOf(maxWidth.value, maxHeight.value) * 0.82f
-                val (buttonColor, icon, tint) = micAppearance(state)
-                Surface(
-                    onClick = { if (active) viewModel.toggleMute() },
-                    enabled = active,
-                    shape = CircleShape,
-                    color = buttonColor,
-                    modifier = Modifier.size(diameter.dp)
-                ) {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = icon,
-                            contentDescription = null,
-                            tint = tint,
-                            modifier = Modifier.size((diameter * 0.4f).dp)
-                        )
-                    }
-                }
+                val canvasSize = minOf(maxWidth.value, maxHeight.value)
+                    .coerceAtMost(240f).dp
+                MicPad(
+                    levelState = micLevel,
+                    micState = state,
+                    active = active,
+                    canvasSize = canvasSize,
+                    onToggle = { viewModel.toggleMute() },
+                )
             }
 
             (errorText ?: state.error)?.let { message ->
@@ -376,6 +374,52 @@ fun MicScreen(viewModel: MicViewModel, onLanguageChanged: () -> Unit = {}) {
                 }
             }
         )
+    }
+}
+
+@Composable
+private fun MicPad(
+    levelState: State<Float>,
+    micState: MicState,
+    active: Boolean,
+    canvasSize: Dp,
+    onToggle: () -> Unit,
+) {
+    val buttonSize = 64.dp
+    val (buttonColor, icon, tint) = micAppearance(micState)
+    val rawLevel = if (active) levelState.value else 0f
+    // WebRTC's audioLevel is a small linear value for normal speech, so scale it
+    // up hard or the halo barely moves.
+    val target = (rawLevel * 4f).coerceIn(0f, 1f)
+    val display by animateFloatAsState(
+        targetValue = target,
+        animationSpec = tween(durationMillis = 90),
+        label = "micLevel",
+    )
+
+    Box(Modifier.size(canvasSize), contentAlignment = Alignment.Center) {
+        Canvas(Modifier.fillMaxSize()) {
+            val baseRadius = buttonSize.toPx() / 2f
+            val scale = 1f + display * 1.4f
+            val alpha = (0.15f + display * 0.45f).coerceAtMost(0.6f)
+            drawCircle(color = buttonColor.copy(alpha = alpha), radius = baseRadius * scale)
+        }
+        Surface(
+            onClick = onToggle,
+            enabled = active,
+            shape = CircleShape,
+            color = buttonColor,
+            modifier = Modifier.size(buttonSize)
+        ) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = tint,
+                    modifier = Modifier.size(30.dp)
+                )
+            }
+        }
     }
 }
 

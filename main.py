@@ -19,7 +19,7 @@ else:
     base_path = os.path.dirname(os.path.abspath(__file__))
 
 # 常量
-VERSION = "v0.1.9"
+VERSION = "v0.1.10"
 DEFAULT_PORT = 5000
 
 # 单实例检测
@@ -356,6 +356,13 @@ class ServerControl:
     def regenerate_pin(self):
         global server_pin
         server_pin = _generate_pin()
+        return server_pin
+
+    def set_pin(self, value):
+        """Use a user-chosen PIN, or fall back to a random one when empty."""
+        global server_pin
+        value = str(value).strip()
+        server_pin = value if value else _generate_pin()
         return server_pin
 
     def ips(self):

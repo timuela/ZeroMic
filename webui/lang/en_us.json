@@ -80,6 +80,7 @@
 
   "settings_require_pin": "Require PIN",
   "settings_new_pin": "New PIN",
+  "settings_pin_apply": "Apply",
   "settings_pin": "PIN",
   "m_pin_label": "PIN",
   "m_pin_title": "PIN Required",

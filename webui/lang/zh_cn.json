@@ -82,6 +82,7 @@
 
   "settings_require_pin": "需要 PIN",
   "settings_new_pin": "新 PIN",
+  "settings_pin_apply": "应用",
   "settings_pin": "PIN",
   "m_pin_label": "PIN",
   "m_pin_title": "需要 PIN 验证",

@@ -80,6 +80,7 @@
 
   "settings_require_pin": "Yêu cầu PIN",
   "settings_new_pin": "PIN mới",
+  "settings_pin_apply": "Áp dụng",
   "settings_pin": "PIN",
   "m_pin_label": "PIN",
   "m_pin_title": "Cần mã PIN",

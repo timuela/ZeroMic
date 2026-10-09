@@ -37,6 +37,9 @@ class MicService : Service(), SignalingClient.Listener, WebRtcClient.Listener {
     private val _state = MutableStateFlow(MicState())
     val state: StateFlow<MicState> = _state.asStateFlow()
 
+    private val _level = MutableStateFlow(0f)
+    val level: StateFlow<Float> = _level.asStateFlow()
+
     private var signaling: SignalingClient? = null
     private var webRtc: WebRtcClient? = null
     private var wakeLock: PowerManager.WakeLock? = null
@@ -138,6 +141,7 @@ class MicService : Service(), SignalingClient.Listener, WebRtcClient.Listener {
         webRtc = null
         releaseLocks()
         muted = false
+        _level.value = 0f
         _state.value = MicState(phase = MicPhase.IDLE)
     }
 
@@ -187,6 +191,11 @@ class MicService : Service(), SignalingClient.Listener, WebRtcClient.Listener {
     }
 
     override fun onPeerReady() {}
+
+    override fun onAudioLevel(level: Float) {
+        if (!active) return
+        _level.value = level
+    }
 
     override fun onAuthFailed() {
         if (!active) return

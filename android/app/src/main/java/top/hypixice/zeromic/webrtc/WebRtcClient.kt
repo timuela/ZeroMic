@@ -2,6 +2,8 @@ package top.hypixice.zeromic.webrtc
 
 import android.content.Context
 import android.media.MediaRecorder
+import android.os.Handler
+import android.os.Looper
 import org.webrtc.AudioSource
 import org.webrtc.AudioTrack
 import org.webrtc.DataChannel
@@ -10,6 +12,9 @@ import org.webrtc.MediaConstraints
 import org.webrtc.MediaStream
 import org.webrtc.PeerConnection
 import org.webrtc.PeerConnectionFactory
+import org.webrtc.RTCStatsCollectorCallback
+import org.webrtc.RTCStatsReport
+import org.webrtc.RtpSender
 import org.webrtc.SdpObserver
 import org.webrtc.SessionDescription
 import org.webrtc.audio.JavaAudioDeviceModule
@@ -24,6 +29,7 @@ class WebRtcClient(
         fun onLocalSdp(sdp: String)
         fun onLocalCandidate(candidate: String, sdpMid: String?, sdpMLineIndex: Int)
         fun onRtcState(state: State)
+        fun onAudioLevel(level: Float)
     }
 
     enum class State { CONNECTING, CONNECTED, DISCONNECTED, FAILED }
@@ -36,8 +42,12 @@ class WebRtcClient(
     private var audioSource: AudioSource? = null
     private var audioTrack: AudioTrack? = null
     private var peerConnection: PeerConnection? = null
+    private var audioSender: RtpSender? = null
     private var hasOffer = false
     @Volatile private var closed = false
+
+    private val mainHandler = Handler(Looper.getMainLooper())
+    @Volatile private var levelPolling = false
 
     private val candidateLock = Any()
     private var remoteDescriptionSet = false
@@ -108,11 +118,13 @@ class WebRtcClient(
     }
 
     fun stop() {
+        stopLevelPolling()
         submit {
             audioTrack?.setEnabled(false)
             peerConnection?.close()
             peerConnection?.dispose()
             peerConnection = null
+            audioSender = null
             audioTrack?.dispose()
             audioTrack = null
             audioSource?.dispose()
@@ -177,9 +189,53 @@ class WebRtcClient(
         audioSource = f.createAudioSource(constraints)
         audioTrack = f.createAudioTrack("zeromic_audio", audioSource)
         audioTrack?.let { track ->
-            peerConnection?.addTrack(track, listOf(STREAM_ID))
+            audioSender = peerConnection?.addTrack(track, listOf(STREAM_ID))
         }
+        startLevelPolling()
         listener.onRtcState(State.CONNECTING)
+    }
+
+    private fun startLevelPolling() {
+        if (levelPolling) return
+        levelPolling = true
+        mainHandler.post(levelPoll)
+    }
+
+    private fun stopLevelPolling() {
+        if (!levelPolling) return
+        levelPolling = false
+        mainHandler.removeCallbacks(levelPoll)
+        listener.onAudioLevel(0f)
+    }
+
+    private val levelPoll = object : Runnable {
+        override fun run() {
+            if (!levelPolling) return
+            val pc = peerConnection
+            val sender = audioSender
+            if (pc != null && sender != null) {
+                pc.getStats(sender, RTCStatsCollectorCallback { report ->
+                    listener.onAudioLevel(extractAudioLevel(report))
+                })
+            }
+            mainHandler.postDelayed(this, LEVEL_POLL_MS)
+        }
+    }
+
+    /** Pulls the outbound audio level (0..1) out of the WebRTC stats report. */
+    private fun extractAudioLevel(report: RTCStatsReport): Float {
+        var level = 0f
+        for (stat in report.statsMap.values) {
+            for ((key, value) in stat.members) {
+                val name = key.lowercase()
+                val isLevel = name.contains("audiolevel") ||
+                    (name.contains("audio") && name.contains("level"))
+                if (!isLevel) continue
+                val d = (value as? Number)?.toDouble() ?: continue
+                if (d > level) level = d.toFloat()
+            }
+        }
+        return level.coerceIn(0f, 1f)
     }
 
     private fun createOffer(iceRestart: Boolean) {
@@ -239,6 +295,7 @@ class WebRtcClient(
 
     companion object {
         private const val STREAM_ID = "zeromic_stream"
+        private const val LEVEL_POLL_MS = 100L
         @Volatile private var initialized = false
     }
 }

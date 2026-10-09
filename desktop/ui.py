@@ -6,13 +6,14 @@ from PySide6.QtCore import (
     QEasingCurve,
     QPointF,
     QPropertyAnimation,
+    QRegularExpression,
     QRect,
     QSize,
     Qt,
     QTimer,
     Signal,
 )
-from PySide6.QtGui import QColor, QPainter, QPixmap
+from PySide6.QtGui import QColor, QPainter, QPixmap, QRegularExpressionValidator
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -20,6 +21,7 @@ from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QMainWindow,
     QPushButton,
     QScrollArea,
@@ -38,8 +40,8 @@ ICON_FILE_OFF = "icon-volume-off.png"
 ICON_FILE_UP = "icon-volume-up.png"
 
 BUTTON_DIAMETER = 124
-BUTTON_WIDGET_SIZE = 216
-RING_MAX_SCALE = 1.55
+BUTTON_WIDGET_SIZE = 280
+RING_MAX_SCALE = 2.1
 ICON_PIXEL_SIZE = 46
 
 BUTTON_IDLE_BG = QColor(0x2A, 0x2A, 0x2A)
@@ -186,7 +188,7 @@ class MicButton(QWidget):
         # Ring first, so it sits behind the button and grows evenly outwards.
         if self._display > 0.002:
             ring = QColor(button_bg)
-            ring.setAlphaF(min(0.30, 0.08 + self._display * 0.24))
+            ring.setAlphaF(min(0.55, 0.12 + self._display * 0.43))
             ring_radius = button_radius * (1.0 + self._display * (RING_MAX_SCALE - 1.0))
             painter.setPen(Qt.NoPen)
             painter.setBrush(ring)
@@ -221,6 +223,7 @@ class MainWindow(QMainWindow):
     languageChanged = Signal(str)
     requirePinChanged = Signal(bool)
     regeneratePinRequested = Signal()
+    pinChanged = Signal(str)
     installReminderAcknowledged = Signal()
     addressSelected = Signal(str)
     portChangeRequested = Signal(int)
@@ -499,20 +502,30 @@ class MainWindow(QMainWindow):
         layout.addWidget(self._require_pin_check)
 
         pin_row = QHBoxLayout()
-        self._settings_pin_value = QLabel("------")
-        self._settings_pin_value.setStyleSheet(
-            "font-family: monospace; font-size: 20px; font-weight: bold;"
+        self._pin_edit = QLineEdit()
+        self._pin_edit.setMaxLength(10)
+        self._pin_edit.setValidator(
+            QRegularExpressionValidator(QRegularExpression(r"[0-9]{0,10}"))
+        )
+        self._pin_edit.setPlaceholderText(self._t("settings_pin", "PIN"))
+        self._pin_edit.setStyleSheet(
+            "font-family: monospace; font-size: 18px; font-weight: bold;"
             " color: #4285F4;"
         )
-        pin_row.addWidget(self._settings_pin_value)
-        pin_row.addStretch(1)
+        self._pin_edit.returnPressed.connect(self._emit_pin_changed)
+        pin_row.addWidget(self._pin_edit, 1)
+        self._pin_apply_button = QPushButton(self._t("settings_pin_apply", "Apply"))
+        self._pin_apply_button.setObjectName("flatButton")
+        self._pin_apply_button.clicked.connect(self._emit_pin_changed)
+        pin_row.addWidget(self._pin_apply_button)
+        layout.addLayout(pin_row)
+
         self._new_pin_button = QPushButton(self._t("settings_new_pin", "New PIN"))
         self._new_pin_button.setObjectName("flatButton")
         self._new_pin_button.clicked.connect(
             lambda: self.regeneratePinRequested.emit()
         )
-        pin_row.addWidget(self._new_pin_button)
-        layout.addLayout(pin_row)
+        layout.addWidget(self._new_pin_button)
 
         self._settings_more_label = QLabel(self._t("settings_more", "More"))
         self._settings_more_label.setObjectName("statusTitle")
@@ -550,10 +563,15 @@ class MainWindow(QMainWindow):
         self._require_pin_check.blockSignals(True)
         self._require_pin_check.setChecked(self._pin_required)
         self._require_pin_check.blockSignals(False)
+        self._pin_edit.blockSignals(True)
+        self._pin_edit.setText(self._pin)
+        self._pin_edit.blockSignals(False)
         self._refresh_pin_labels()
 
+    def _emit_pin_changed(self):
+        self.pinChanged.emit(self._pin_edit.text().strip())
+
     def _refresh_pin_labels(self):
-        self._settings_pin_value.setText(self._pin or "------")
         if self._pin_required and self._pin:
             self._tutorial_pin.setText(f'{self._t("settings_pin", "PIN")}: {self._pin}')
             self._tutorial_pin.setVisible(True)
@@ -644,6 +662,8 @@ class MainWindow(QMainWindow):
         self._settings_more_label.setText(self._t("settings_more", "More"))
         self._require_pin_check.setText(self._t("settings_require_pin", "Require PIN"))
         self._new_pin_button.setText(self._t("settings_new_pin", "New PIN"))
+        self._pin_apply_button.setText(self._t("settings_pin_apply", "Apply"))
+        self._pin_edit.setPlaceholderText(self._t("settings_pin", "PIN"))
         self._refresh_pin_labels()
         self._settings_button.setToolTip(self._t("settings_title", "Settings"))
         self._about_button.setText(self._t("header_about", "About"))

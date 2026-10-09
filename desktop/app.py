@@ -220,6 +220,7 @@ class DesktopApp:
         self._window.languageChanged.connect(self._on_language_changed)
         self._window.requirePinChanged.connect(self._on_require_pin_changed)
         self._window.regeneratePinRequested.connect(self._on_regenerate_pin)
+        self._window.pinChanged.connect(self._on_pin_changed)
         self._window.addressSelected.connect(self._on_address_selected)
         self._window.portChangeRequested.connect(self._on_port_requested)
 
@@ -431,6 +432,15 @@ class DesktopApp:
                 setter(required)
             except Exception:
                 log.debug("could not set the PIN requirement", exc_info=True)
+
+        # A PIN the user typed is reused; otherwise a random one is generated.
+        apply_pin = getattr(self._server, "set_pin", None)
+        custom = str(self._settings.value("pin") or "").strip()
+        if apply_pin is not None:
+            try:
+                apply_pin(custom)
+            except Exception:
+                log.debug("could not apply the PIN", exc_info=True)
         self._window.set_pin(getattr(self._server, "pin", "") or "", required)
 
     def _on_require_pin_changed(self, enabled):
@@ -451,6 +461,20 @@ class DesktopApp:
                 regenerate()
             except Exception:
                 log.debug("could not regenerate the PIN", exc_info=True)
+        self._window.set_pin(
+            getattr(self._server, "pin", "") or "",
+            getattr(self._server, "require_pin", True),
+        )
+
+    def _on_pin_changed(self, value):
+        apply_pin = getattr(self._server, "set_pin", None)
+        if apply_pin is not None:
+            try:
+                apply_pin(value)
+            except Exception:
+                log.debug("could not set the PIN", exc_info=True)
+        self._settings.setValue("pin", str(value).strip())
+        self._settings.sync()
         self._window.set_pin(
             getattr(self._server, "pin", "") or "",
             getattr(self._server, "require_pin", True),
