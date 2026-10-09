@@ -25,6 +25,7 @@ from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QFrame,
+    QGridLayout,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -495,10 +496,15 @@ class MainWindow(QMainWindow):
         self._require_pin_check.toggled.connect(self.requirePinChanged.emit)
         layout.addWidget(self._require_pin_check)
 
-        pin_row = QHBoxLayout()
+        # One grid keeps both rows' labels, fields and Apply buttons in the same
+        # columns, so they line up no matter how wide the label or button text is.
+        grid = QGridLayout()
+        grid.setHorizontalSpacing(8)
+        grid.setVerticalSpacing(8)
+        grid.setColumnMinimumWidth(0, LABEL_WIDTH)
+
         self._pin_label = QLabel(self._t("settings_pin", "PIN"))
-        self._pin_label.setFixedWidth(LABEL_WIDTH)
-        pin_row.addWidget(self._pin_label)
+        grid.addWidget(self._pin_label, 0, 0, Qt.AlignLeft | Qt.AlignVCenter)
         self._pin_edit = QLineEdit()
         self._pin_edit.setMaxLength(10)
         self._pin_edit.setValidator(
@@ -507,36 +513,33 @@ class MainWindow(QMainWindow):
         self._pin_edit.setFixedWidth(FIELD_WIDTH)
         self._pin_edit.setStyleSheet(FIELD_STYLE)
         self._pin_edit.returnPressed.connect(self._emit_pin_changed)
-        pin_row.addWidget(self._pin_edit)
+        grid.addWidget(self._pin_edit, 0, 1)
         self._pin_apply_button = QPushButton(self._t("settings_pin_apply", "Apply"))
         self._pin_apply_button.setObjectName("flatButton")
         self._pin_apply_button.clicked.connect(self._emit_pin_changed)
-        pin_row.addWidget(self._pin_apply_button)
+        grid.addWidget(self._pin_apply_button, 0, 2)
         self._new_pin_button = QPushButton(self._t("settings_new_pin", "New PIN"))
         self._new_pin_button.setObjectName("flatButton")
         self._new_pin_button.clicked.connect(
             lambda: self.regeneratePinRequested.emit()
         )
-        pin_row.addWidget(self._new_pin_button)
-        pin_row.addStretch(1)
-        layout.addLayout(pin_row)
+        grid.addWidget(self._new_pin_button, 0, 3)
 
-        port_row = QHBoxLayout()
         self._port_label = QLabel(self._t("host_port", "Port"))
-        self._port_label.setFixedWidth(LABEL_WIDTH)
-        port_row.addWidget(self._port_label)
+        grid.addWidget(self._port_label, 1, 0, Qt.AlignLeft | Qt.AlignVCenter)
         self._port_input = QLineEdit()
         self._port_input.setValidator(QIntValidator(1024, 65535, self))
         self._port_input.setFixedWidth(FIELD_WIDTH)
         self._port_input.setStyleSheet(FIELD_STYLE)
         self._port_input.returnPressed.connect(self._on_apply_port)
-        port_row.addWidget(self._port_input)
+        grid.addWidget(self._port_input, 1, 1)
         self._apply_port_button = QPushButton(self._t("host_apply", "Apply"))
         self._apply_port_button.setObjectName("flatButton")
         self._apply_port_button.clicked.connect(self._on_apply_port)
-        port_row.addWidget(self._apply_port_button)
-        port_row.addStretch(1)
-        layout.addLayout(port_row)
+        grid.addWidget(self._apply_port_button, 1, 2)
+
+        grid.setColumnStretch(4, 1)
+        layout.addLayout(grid)
 
         self._settings_more_label = QLabel(self._t("settings_more", "More"))
         self._settings_more_label.setObjectName("statusTitle")
