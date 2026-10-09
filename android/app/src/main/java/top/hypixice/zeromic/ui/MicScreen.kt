@@ -10,21 +10,19 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Mic
@@ -55,6 +53,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -130,9 +129,8 @@ fun MicScreen(viewModel: MicViewModel, onLanguageChanged: () -> Unit = {}) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
                 .padding(padding)
-                .padding(horizontal = 24.dp, vertical = 16.dp),
+                .padding(horizontal = 20.dp, vertical = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Row(
@@ -171,19 +169,14 @@ fun MicScreen(viewModel: MicViewModel, onLanguageChanged: () -> Unit = {}) {
 
             StatusCard(state)
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(12.dp))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = stringResource(R.string.hosts),
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(Modifier.weight(1f))
-                OutlinedButton(onClick = { addHostOpen = true }, enabled = !active) {
+            if (viewModel.profiles.isEmpty()) {
+                OutlinedButton(
+                    onClick = { addHostOpen = true },
+                    enabled = !active,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     Icon(
                         imageVector = Icons.Filled.Add,
                         contentDescription = null,
@@ -192,68 +185,64 @@ fun MicScreen(viewModel: MicViewModel, onLanguageChanged: () -> Unit = {}) {
                     Spacer(Modifier.size(6.dp))
                     Text(stringResource(R.string.host_add))
                 }
-            }
-
-            Spacer(Modifier.height(8.dp))
-
-            if (viewModel.profiles.isEmpty()) {
-                Text(
-                    text = stringResource(R.string.hosts_empty),
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
             } else {
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(3),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(116.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    userScrollEnabled = !active
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    items(viewModel.profiles, key = { it.address }) { profile ->
-                        HostCard(
-                            profile = profile,
-                            selected = profile.address == viewModel.address.trim(),
-                            onClick = { viewModel.selectProfile(profile) },
-                            onLongClick = { pendingDelete = profile }
+                    LazyRow(
+                        modifier = Modifier.weight(1f),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        userScrollEnabled = !active
+                    ) {
+                        items(viewModel.profiles, key = { it.address }) { profile ->
+                            HostChip(
+                                profile = profile,
+                                selected = profile.address == viewModel.address.trim(),
+                                onClick = { viewModel.selectProfile(profile) },
+                                onLongClick = { pendingDelete = profile }
+                            )
+                        }
+                    }
+                    Spacer(Modifier.size(4.dp))
+                    IconButton(onClick = { addHostOpen = true }, enabled = !active) {
+                        Icon(
+                            imageVector = Icons.Filled.Add,
+                            contentDescription = stringResource(R.string.host_add),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = stringResource(R.string.host_delete_hint),
-                    fontSize = 10.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
             }
 
             Spacer(Modifier.height(12.dp))
 
-            OutlinedTextField(
-                value = viewModel.address,
-                onValueChange = viewModel::onAddressChange,
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                enabled = !active,
-                label = { Text(stringResource(R.string.address_label)) },
-                placeholder = { Text(stringResource(R.string.address_hint)) }
-            )
+                verticalAlignment = Alignment.Top
+            ) {
+                OutlinedTextField(
+                    value = viewModel.address,
+                    onValueChange = viewModel::onAddressChange,
+                    modifier = Modifier.weight(1f),
+                    singleLine = true,
+                    enabled = !active,
+                    label = { Text(stringResource(R.string.address_label)) },
+                    placeholder = { Text(stringResource(R.string.address_hint)) }
+                )
+                Spacer(Modifier.width(8.dp))
+                OutlinedTextField(
+                    value = viewModel.pin,
+                    onValueChange = viewModel::onPinChange,
+                    modifier = Modifier.width(118.dp),
+                    singleLine = true,
+                    enabled = !active,
+                    label = { Text(stringResource(R.string.pin_label)) }
+                )
+            }
 
-            Spacer(Modifier.height(12.dp))
-
-            OutlinedTextField(
-                value = viewModel.pin,
-                onValueChange = viewModel::onPinChange,
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                enabled = !active,
-                label = { Text(stringResource(R.string.pin_label)) },
-                placeholder = { Text(stringResource(R.string.pin_hint)) }
-            )
-
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(16.dp))
 
             Column(Modifier.fillMaxWidth()) {
                 Row(
@@ -276,46 +265,45 @@ fun MicScreen(viewModel: MicViewModel, onLanguageChanged: () -> Unit = {}) {
                 )
             }
 
-            Spacer(Modifier.height(24.dp))
-
-            Box(Modifier.size(180.dp), contentAlignment = Alignment.Center) {
+            // The mic button absorbs whatever vertical space is left, so the
+            // page fits one screen instead of scrolling to reach Connect.
+            BoxWithConstraints(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                val diameter = minOf(maxWidth.value, maxHeight.value) * 0.82f
                 val (buttonColor, icon, tint) = micAppearance(state)
                 Surface(
                     onClick = { if (active) viewModel.toggleMute() },
                     enabled = active,
                     shape = CircleShape,
                     color = buttonColor,
-                    modifier = Modifier.size(140.dp)
+                    modifier = Modifier.size(diameter.dp)
                 ) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = icon,
                             contentDescription = null,
                             tint = tint,
-                            modifier = Modifier.size(56.dp)
+                            modifier = Modifier.size((diameter * 0.4f).dp)
                         )
                     }
                 }
             }
 
-            errorText?.let { message ->
+            (errorText ?: state.error)?.let { message ->
                 Text(
                     text = message,
                     color = MaterialTheme.colorScheme.error,
                     fontSize = 13.sp,
-                    modifier = Modifier.padding(top = 12.dp)
-                )
-            }
-            state.error?.let { message ->
-                Text(
-                    text = message,
-                    color = MaterialTheme.colorScheme.error,
-                    fontSize = 13.sp,
-                    modifier = Modifier.padding(top = 12.dp)
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(top = 8.dp)
                 )
             }
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(8.dp))
 
             Button(
                 onClick = { if (active) viewModel.disconnect() else startSession() },
@@ -532,18 +520,15 @@ private fun LanguageSelector(current: String, onSelected: (String) -> Unit) {
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun HostCard(
+private fun HostChip(
     profile: HostProfile,
     selected: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit
 ) {
     Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 54.dp)
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
-        shape = MaterialTheme.shapes.medium,
+        modifier = Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick),
+        shape = RoundedCornerShape(50),
         color = if (selected) {
             MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
         } else {
@@ -558,35 +543,15 @@ private fun HostCard(
             }
         )
     ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
-        ) {
-            Text(
-                text = profile.name,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-                text = profile.address,
-                fontSize = 10.sp,
-                maxLines = 1,
-                softWrap = false,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            if (profile.description.isNotBlank()) {
-                Text(
-                    text = profile.description,
-                    fontSize = 10.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
+        Text(
+            text = profile.name,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+        )
     }
 }
 
