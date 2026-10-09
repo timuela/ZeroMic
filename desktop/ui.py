@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QMainWindow,
     QPushButton,
+    QScrollArea,
     QSlider,
     QSpinBox,
     QVBoxLayout,
@@ -218,11 +219,9 @@ class MainWindow(QMainWindow):
         self.resize(420, 820)
         self.setWindowIcon(QApplication.windowIcon())
 
-        central = QWidget()
-        central.setObjectName("centralWidget")
-        self.setCentralWidget(central)
-
-        root = QVBoxLayout(central)
+        content = QWidget()
+        content.setObjectName("centralWidget")
+        root = QVBoxLayout(content)
         root.setContentsMargins(20, 16, 20, 16)
         root.setSpacing(16)
 
@@ -373,6 +372,19 @@ class MainWindow(QMainWindow):
         self._connect_button.clicked.connect(self._on_connect_clicked)
         root.addWidget(self._connect_button)
 
+        # Everything lives in a scroll area so the layout minimum stays small.
+        # Otherwise showing the address list or the microphone pad raises the
+        # window's minimum height and Qt forces the window taller than the
+        # user sized it, every time the connection state changes.
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll.setStyleSheet("QScrollArea { border: none; background: #121212; }")
+        scroll.setWidget(content)
+        self.setCentralWidget(scroll)
+
+        self.setMinimumSize(360, 420)
         self.set_language(self._language)
 
     # ------------------------------------------------------------------
