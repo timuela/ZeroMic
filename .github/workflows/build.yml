@@ -117,27 +117,59 @@ jobs:
           pyinstaller --noconfirm --workpath build\onedir --distpath dist main.spec
           if ($LASTEXITCODE -ne 0) { throw "one-dir build failed" }
 
+          # A separate --distpath keeps this run from touching the one-dir output
+          # the installer step still needs.
           $env:ZEROMIC_ONEFILE = '1'
-          pyinstaller --noconfirm --workpath build\onefile --distpath dist main.spec
+          pyinstaller --noconfirm --workpath build\onefile --distpath dist-portable main.spec
           if ($LASTEXITCODE -ne 0) { throw "single-file build failed" }
           Remove-Item Env:ZEROMIC_ONEFILE
 
-          Move-Item dist\ZeroMic-Portable.exe `
+          Move-Item dist-portable\ZeroMic-Portable.exe `
             "dist\ZeroMic-Host-Portable-${{ steps.version.outputs.version }}-${{ matrix.target_name }}.exe" -Force
         shell: pwsh
 
       # The Windows runner images ship Inno Setup 6. Only x64 gets an installer;
-      # arm64 stays portable-only.
+      # arm64 stays portable-only. The target name comes from the script's own
+      # default (windows-x64), so nothing has to be threaded through a /D define.
       - name: Build installer (Windows x64)
         if: matrix.target_name == 'windows-x64'
         run: |
+          $ErrorActionPreference = 'Stop'
+          $version = "${{ steps.version.outputs.version }}"
+          $payload = Join-Path $PWD 'dist\ZeroMic'
+          $iss = Join-Path $PWD 'installer\zeromic.iss'
+
           $iscc = (Get-Command iscc.exe -ErrorAction SilentlyContinue).Source
+          $candidates = @(
+            "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
+            "$env:ProgramFiles\Inno Setup 6\ISCC.exe",
+            "${env:ProgramFiles(x86)}\Inno Setup 7\ISCC.exe"
+          )
+          if (-not $iscc) { $iscc = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1 }
           if (-not $iscc) {
             choco install innosetup -y --no-progress
-            $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+            $iscc = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
           }
-          & $iscc "/DAppVersion=${{ steps.version.outputs.version }}" "/DTargetName=${{ matrix.target_name }}" "/DDistDir=dist\ZeroMic" installer\zeromic.iss
-          if ($LASTEXITCODE -ne 0) { throw "ISCC failed with exit code $LASTEXITCODE" }
+          if (-not $iscc) { Write-Output "::error::Inno Setup (ISCC.exe) not found"; exit 1 }
+
+          Write-Host "iscc:    $iscc"
+          Write-Host "payload: $payload"
+          Write-Host "script:  $iss"
+          if (-not (Test-Path (Join-Path $payload 'ZeroMic.exe'))) {
+            Write-Output "::error::installer payload missing: no ZeroMic.exe under $payload"
+            Get-ChildItem dist | Select-Object -First 12 | Out-String | Write-Host
+            exit 1
+          }
+
+          $log = & $iscc "/DAppVersion=$version" "/DDistDir=$payload" $iss 2>&1
+          $code = $LASTEXITCODE
+          $log | Write-Host
+          if ($code -ne 0) {
+            $tail = ($log | Out-String).Trim() -replace "`r?`n", ' | '
+            if ($tail.Length -gt 800) { $tail = $tail.Substring($tail.Length - 800) }
+            Write-Output "::error::ISCC exited $code :: $tail"
+            exit 1
+          }
         shell: pwsh
 
       # === Linux/macOS 独立构建 (利用 Bash 和 Spec 变量) ===

@@ -33,11 +33,13 @@ try {
     }
 
     Write-Host "  [2/2] single-file portable ..."
+    # A separate --distpath keeps this run from touching the one-dir output the
+    # installer step still needs.
     $env:ZEROMIC_ONEFILE = '1'
-    & $py -m PyInstaller --noconfirm --workpath build\onefile --distpath dist main.spec
+    & $py -m PyInstaller --noconfirm --workpath build\onefile --distpath dist-portable main.spec
     if ($LASTEXITCODE -ne 0) { throw "PyInstaller (single-file) failed with exit code $LASTEXITCODE" }
-    if (-not (Test-Path (Join-Path $repo 'dist\ZeroMic-Portable.exe'))) {
-        throw "PyInstaller finished but dist\ZeroMic-Portable.exe is missing."
+    if (-not (Test-Path (Join-Path $repo 'dist-portable\ZeroMic-Portable.exe'))) {
+        throw "PyInstaller finished but dist-portable\ZeroMic-Portable.exe is missing."
     }
 } finally {
     Remove-Item Env:ZEROMIC_ONEFILE -ErrorAction SilentlyContinue
@@ -45,7 +47,8 @@ try {
 }
 
 $portable = Join-Path $repo "dist\ZeroMic-Host-Portable-$version-$Target.exe"
-Move-Item (Join-Path $repo 'dist\ZeroMic-Portable.exe') $portable -Force
+Move-Item (Join-Path $repo 'dist-portable\ZeroMic-Portable.exe') $portable -Force
+Remove-Item (Join-Path $repo 'dist-portable') -Recurse -Force -ErrorAction SilentlyContinue
 
 Write-Host ""
 Write-Host "Host folder:  $(Join-Path $repo 'dist\ZeroMic')   (single build, starts fastest)"
