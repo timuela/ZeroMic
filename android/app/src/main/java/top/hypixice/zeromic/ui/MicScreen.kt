@@ -93,7 +93,7 @@ fun MicScreen(viewModel: MicViewModel, onLanguageChanged: () -> Unit = {}) {
     val micLevel = viewModel.level.collectAsStateWithLifecycle()
     var errorText by remember { mutableStateOf<String?>(null) }
     var addHostOpen by remember { mutableStateOf(false) }
-    var pendingDelete by remember { mutableStateOf<HostProfile?>(null) }
+    var editProfile by remember { mutableStateOf<HostProfile?>(null) }
     var settingsOpen by remember { mutableStateOf(false) }
 
     val runtimePermissions = remember {
@@ -207,7 +207,7 @@ fun MicScreen(viewModel: MicViewModel, onLanguageChanged: () -> Unit = {}) {
                                 profile = profile,
                                 selected = profile.address == viewModel.address.trim(),
                                 onClick = { viewModel.selectProfile(profile) },
-                                onLongClick = { pendingDelete = profile }
+                                onLongClick = { editProfile = profile }
                             )
                         }
                     }
@@ -345,7 +345,9 @@ fun MicScreen(viewModel: MicViewModel, onLanguageChanged: () -> Unit = {}) {
     }
 
     if (addHostOpen) {
-        AddHostDialog(
+        HostDialog(
+            title = stringResource(R.string.host_add_title),
+            confirmLabel = stringResource(R.string.host_add),
             initialAddress = viewModel.address.trim(),
             onDismiss = { addHostOpen = false },
             onConfirm = { name, address, description ->
@@ -355,23 +357,23 @@ fun MicScreen(viewModel: MicViewModel, onLanguageChanged: () -> Unit = {}) {
         )
     }
 
-    pendingDelete?.let { profile ->
-        AlertDialog(
-            onDismissRequest = { pendingDelete = null },
-            title = { Text(stringResource(R.string.host_delete_confirm)) },
-            text = { Text(profile.name) },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.deleteProfile(profile)
-                    pendingDelete = null
-                }) {
-                    Text(stringResource(R.string.host_delete))
-                }
+    // Long-pressing a host opens the same form, pre-filled, with delete offered
+    // at the bottom for when that is what was wanted.
+    editProfile?.let { profile ->
+        HostDialog(
+            title = stringResource(R.string.host_edit_title),
+            confirmLabel = stringResource(R.string.host_save),
+            initialName = profile.name,
+            initialAddress = profile.address,
+            initialDescription = profile.description,
+            onDismiss = { editProfile = null },
+            onConfirm = { name, address, description ->
+                viewModel.updateProfile(profile, name, address, description)
+                editProfile = null
             },
-            dismissButton = {
-                TextButton(onClick = { pendingDelete = null }) {
-                    Text(stringResource(R.string.cancel))
-                }
+            onDelete = {
+                viewModel.deleteProfile(profile)
+                editProfile = null
             }
         )
     }
@@ -600,18 +602,23 @@ private fun HostChip(
 }
 
 @Composable
-private fun AddHostDialog(
-    initialAddress: String,
+private fun HostDialog(
+    title: String,
+    confirmLabel: String,
+    initialName: String = "",
+    initialAddress: String = "",
+    initialDescription: String = "",
     onDismiss: () -> Unit,
-    onConfirm: (String, String, String) -> Unit
+    onConfirm: (String, String, String) -> Unit,
+    onDelete: (() -> Unit)? = null
 ) {
-    var name by remember { mutableStateOf("") }
+    var name by remember { mutableStateOf(initialName) }
     var address by remember { mutableStateOf(initialAddress) }
-    var description by remember { mutableStateOf("") }
+    var description by remember { mutableStateOf(initialDescription) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.host_add_title)) },
+        title = { Text(title) },
         text = {
             Column {
                 OutlinedTextField(
@@ -645,12 +652,22 @@ private fun AddHostDialog(
                 enabled = name.isNotBlank() && address.isNotBlank(),
                 onClick = { onConfirm(name.trim(), address.trim(), description.trim()) }
             ) {
-                Text(stringResource(R.string.host_add))
+                Text(confirmLabel)
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.cancel))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (onDelete != null) {
+                    TextButton(onClick = onDelete) {
+                        Text(
+                            text = stringResource(R.string.host_delete),
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+                TextButton(onClick = onDismiss) {
+                    Text(stringResource(R.string.cancel))
+                }
             }
         }
     )

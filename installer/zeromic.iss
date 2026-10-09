@@ -12,6 +12,9 @@
 #ifndef DistDir
   #define DistDir "..\dist\ZeroMic"
 #endif
+#ifndef TargetName
+  #define TargetName "windows-x64"
+#endif
 #ifndef OutputDir
   #define OutputDir "..\dist"
 #endif
@@ -34,7 +37,7 @@ PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 OutputDir={#OutputDir}
-OutputBaseFilename=ZeroMic-Setup-{#AppVersion}
+OutputBaseFilename=ZeroMic-Host-Setup-{#AppVersion}-{#TargetName}
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern

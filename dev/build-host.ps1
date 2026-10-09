@@ -1,10 +1,18 @@
-# Build the Windows host (one-dir) and zip it as the portable download.
+# Build the Windows host, in both shapes:
+#
+#   dist\ZeroMic\                                       one-dir, the installer payload
+#   dist\ZeroMic-Host-Portable-<v>-<target>.exe         single-file portable
+#
+# The one-dir build runs straight from disk. The single-file exe unpacks the
+# same payload into %TEMP% on every launch, so it starts slower - that is the
+# price of being one file.
 #
 #   powershell -ExecutionPolicy Bypass -File dev\build-host.ps1
 #
-# One-dir: the app runs straight from its folder instead of unpacking to %TEMP%
-# on every launch, and the installer can ship the same folder.
-#
+param(
+    [string]$Target = 'windows-x64'
+)
+
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
 
@@ -12,24 +20,35 @@ $py = Join-Path $repo '.venv\Scripts\python.exe'
 if (-not (Test-Path $py)) { throw "No .venv found. Run dev\setup.ps1 first." }
 
 $version = (Select-String -Path (Join-Path $repo 'main.py') -Pattern 'VERSION = "v([\d.]+)"').Matches[0].Groups[1].Value
-Write-Host "Building ZeroMic Host $version (one-dir) ..."
+Write-Host "Building ZeroMic Host $version ..."
 
 Push-Location $repo
 try {
-    & $py -m PyInstaller --noconfirm main.spec
-    if ($LASTEXITCODE -ne 0) { throw "PyInstaller failed with exit code $LASTEXITCODE" }
+    Remove-Item Env:ZEROMIC_ONEFILE -ErrorAction SilentlyContinue
+    Write-Host "  [1/2] one-dir (installer payload) ..."
+    & $py -m PyInstaller --noconfirm --workpath build\onedir --distpath dist main.spec
+    if ($LASTEXITCODE -ne 0) { throw "PyInstaller (one-dir) failed with exit code $LASTEXITCODE" }
+    if (-not (Test-Path (Join-Path $repo 'dist\ZeroMic\ZeroMic.exe'))) {
+        throw "PyInstaller finished but dist\ZeroMic\ZeroMic.exe is missing."
+    }
+
+    Write-Host "  [2/2] single-file portable ..."
+    $env:ZEROMIC_ONEFILE = '1'
+    & $py -m PyInstaller --noconfirm --workpath build\onefile --distpath dist main.spec
+    if ($LASTEXITCODE -ne 0) { throw "PyInstaller (single-file) failed with exit code $LASTEXITCODE" }
+    if (-not (Test-Path (Join-Path $repo 'dist\ZeroMic-Portable.exe'))) {
+        throw "PyInstaller finished but dist\ZeroMic-Portable.exe is missing."
+    }
 } finally {
+    Remove-Item Env:ZEROMIC_ONEFILE -ErrorAction SilentlyContinue
     Pop-Location
 }
 
-$built = Join-Path $repo 'dist\ZeroMic\ZeroMic.exe'
-if (-not (Test-Path $built)) { throw "PyInstaller finished but $built is missing." }
-
-$zip = Join-Path $repo "dist\ZeroMic-Portable-$version-windows-x64.zip"
-if (Test-Path $zip) { Remove-Item $zip -Force }
-Compress-Archive -Path (Join-Path $repo 'dist\ZeroMic\*') -DestinationPath $zip
+$portable = Join-Path $repo "dist\ZeroMic-Host-Portable-$version-$Target.exe"
+Move-Item (Join-Path $repo 'dist\ZeroMic-Portable.exe') $portable -Force
 
 Write-Host ""
-Write-Host "Host built:   $(Join-Path $repo 'dist\ZeroMic')"
-Write-Host "Portable zip: $zip  (unzip anywhere, run ZeroMic.exe)"
+Write-Host "Host folder:  $(Join-Path $repo 'dist\ZeroMic')   (single build, starts fastest)"
+Write-Host "Portable exe: $portable   (one file, starts slower)"
+Write-Host ""
 Write-Host "Installer:    run dev\build-installer.ps1"

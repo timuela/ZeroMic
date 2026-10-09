@@ -13,12 +13,12 @@
     <string name="hosts_empty">还没有主机 — 点击添加主机</string>
     <string name="host_add">添加主机</string>
     <string name="host_add_title">添加主机</string>
+    <string name="host_edit_title">编辑主机</string>
+    <string name="host_save">保存</string>
     <string name="host_name">名称</string>
     <string name="host_ip">IP 或 IP:端口</string>
     <string name="host_description">描述（可选）</string>
     <string name="host_delete">删除主机</string>
-    <string name="host_delete_confirm">删除此主机？</string>
-    <string name="host_delete_hint">长按主机可删除</string>
     <string name="cancel">取消</string>
     <string name="address_label">电脑地址 (IP:端口)</string>
     <string name="address_hint">192.168.1.10（端口默认 5000）</string>

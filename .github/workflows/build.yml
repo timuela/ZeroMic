@@ -106,14 +106,24 @@ jobs:
           echo "tag=$RAW" >> $GITHUB_OUTPUT
           echo "version=${RAW#v}" >> $GITHUB_OUTPUT
 
-      # === Windows 独立构建 (利用 PowerShell 和 Spec 变量) ===
+      # === Windows: both shapes from one spec ===
+      # One-dir is what the installer ships (and starts fastest); the single-file
+      # exe is the portable download, which unpacks to %TEMP% on every launch.
       - name: Build with PyInstaller (Windows)
         if: runner.os == 'Windows'
         env:
           TARGET_ARCH: ${{ matrix.target_arch }} # 关键：传给 main.spec
         run: |
-          pyinstaller --noconfirm main.spec
-          Compress-Archive -Path "dist\ZeroMic\*" -DestinationPath "dist\ZeroMic-Portable-${{ steps.version.outputs.version }}-${{ matrix.target_name }}.zip" -Force
+          pyinstaller --noconfirm --workpath build\onedir --distpath dist main.spec
+          if ($LASTEXITCODE -ne 0) { throw "one-dir build failed" }
+
+          $env:ZEROMIC_ONEFILE = '1'
+          pyinstaller --noconfirm --workpath build\onefile --distpath dist main.spec
+          if ($LASTEXITCODE -ne 0) { throw "single-file build failed" }
+          Remove-Item Env:ZEROMIC_ONEFILE
+
+          Move-Item dist\ZeroMic-Portable.exe `
+            "dist\ZeroMic-Host-Portable-${{ steps.version.outputs.version }}-${{ matrix.target_name }}.exe" -Force
         shell: pwsh
 
       # The Windows runner images ship Inno Setup 6. Only x64 gets an installer;
@@ -126,7 +136,7 @@ jobs:
             choco install innosetup -y --no-progress
             $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
           }
-          & $iscc "/DAppVersion=${{ steps.version.outputs.version }}" "/DDistDir=dist\ZeroMic" installer\zeromic.iss
+          & $iscc "/DAppVersion=${{ steps.version.outputs.version }}" "/DTargetName=${{ matrix.target_name }}" "/DDistDir=dist\ZeroMic" installer\zeromic.iss
           if ($LASTEXITCODE -ne 0) { throw "ISCC failed with exit code $LASTEXITCODE" }
         shell: pwsh
 
@@ -145,9 +155,7 @@ jobs:
         with:
           name: ZeroMic-Host-${{ matrix.target_name }}
           path: |
-            dist/ZeroMic-Portable-*
             dist/ZeroMic-Host-*
-            dist/ZeroMic-Setup-*
           retention-days: 5
 
   # === ZeroMic Client: the Android app ===

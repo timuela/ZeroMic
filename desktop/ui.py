@@ -258,6 +258,8 @@ class MainWindow(QMainWindow):
     regeneratePinRequested = Signal()
     pinChanged = Signal(str)
     startupChanged = Signal(bool)
+    closeToTrayChanged = Signal(bool)
+    quitRequested = Signal()
     installReminderAcknowledged = Signal()
     addressSelected = Signal(str)
     portChangeRequested = Signal(int)
@@ -267,6 +269,9 @@ class MainWindow(QMainWindow):
         self._t = t
         self._version = version
         self._language = language
+        # Closing hides to the tray by default; the settings panel can turn that
+        # off, in which case closing the window quits the app.
+        self.close_to_tray = True
         self._link_up = False
         self._presence = False
         self._rtc_state = "new"
@@ -568,6 +573,15 @@ class MainWindow(QMainWindow):
         self._startup_check.setVisible(sys.platform == "win32")
         layout.addWidget(self._startup_check)
 
+        self._close_tray_check = QCheckBox(
+            self._t("settings_close_to_tray", "Minimize to tray on close")
+        )
+        # Match the behaviour the window already has, until the controller
+        # loads the saved choice.
+        self._close_tray_check.setChecked(self.close_to_tray)
+        self._close_tray_check.toggled.connect(self._on_close_to_tray_toggled)
+        layout.addWidget(self._close_tray_check)
+
         self._settings_more_label = QLabel(self._t("settings_more", "More"))
         self._settings_more_label.setObjectName("statusTitle")
         layout.addWidget(self._settings_more_label)
@@ -616,6 +630,16 @@ class MainWindow(QMainWindow):
         self._startup_check.blockSignals(True)
         self._startup_check.setChecked(bool(enabled))
         self._startup_check.blockSignals(False)
+
+    def set_close_to_tray(self, enabled):
+        self.close_to_tray = bool(enabled)
+        self._close_tray_check.blockSignals(True)
+        self._close_tray_check.setChecked(self.close_to_tray)
+        self._close_tray_check.blockSignals(False)
+
+    def _on_close_to_tray_toggled(self, enabled):
+        self.close_to_tray = bool(enabled)
+        self.closeToTrayChanged.emit(self.close_to_tray)
 
     def _refresh_pin_labels(self):
         if self._pin_required and self._pin:
@@ -712,6 +736,9 @@ class MainWindow(QMainWindow):
         self._new_pin_button.setText(self._t("settings_new_pin", "New PIN"))
         self._startup_check.setText(
             self._t("settings_start_with_windows", "Start with Windows")
+        )
+        self._close_tray_check.setText(
+            self._t("settings_close_to_tray", "Minimize to tray on close")
         )
         self._refresh_pin_labels()
         self._settings_button.setToolTip(self._t("settings_title", "Settings"))
@@ -902,6 +929,11 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event):
         if getattr(self, "allow_close", False):
             event.accept()
+            return
+        if not self.close_to_tray:
+            # "Minimize to tray on close" is off, so closing means quitting.
+            event.accept()
+            self.quitRequested.emit()
             return
         event.ignore()
         self.hide()

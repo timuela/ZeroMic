@@ -98,6 +98,27 @@ class MicViewModel(application: Application) : AndroidViewModel(application) {
         prefs.saveProfiles(updated)
     }
 
+    fun updateProfile(
+        original: HostProfile,
+        name: String,
+        address: String,
+        description: String
+    ) {
+        val target = address.trim()
+        if (target.isEmpty()) return
+        val label = name.trim().ifEmpty { target }
+        val edited = HostProfile(label, target, description.trim())
+        val updated = profiles
+            .map { if (it.address == original.address) edited else it }
+            .distinctBy { it.address }
+        profiles = updated
+        prefs.saveProfiles(updated)
+        // Keep the selection on the host that was just edited.
+        if (this.address.trim() == original.address) {
+            this.address = target
+        }
+    }
+
     fun deleteProfile(profile: HostProfile) {
         val updated = profiles.filterNot { it.address == profile.address }
         profiles = updated

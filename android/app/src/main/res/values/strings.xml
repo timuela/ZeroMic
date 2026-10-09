@@ -13,12 +13,12 @@
     <string name="hosts_empty">No hosts yet — tap Add Host</string>
     <string name="host_add">Add Host</string>
     <string name="host_add_title">Add Host</string>
+    <string name="host_edit_title">Edit host</string>
+    <string name="host_save">Save</string>
     <string name="host_name">Name</string>
     <string name="host_ip">IP or IP:port</string>
     <string name="host_description">Description (optional)</string>
     <string name="host_delete">Delete host</string>
-    <string name="host_delete_confirm">Delete this host?</string>
-    <string name="host_delete_hint">Long-press a host to delete it</string>
     <string name="cancel">Cancel</string>
     <string name="address_label">PC address (IP:port)</string>
     <string name="address_hint">192.168.1.10 (port defaults to 5000)</string>

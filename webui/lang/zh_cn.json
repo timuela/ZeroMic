@@ -78,6 +78,7 @@
   "settings_language": "语言",
   "settings_more": "更多",
   "settings_start_with_windows": "开机启动",
+  "settings_close_to_tray": "关闭时最小化到托盘",
   "settings_version": "版本",
   "settings_close": "关闭",
   "about_body": "基于局域网的 WebRTC —— 无需云端、无需账号。",

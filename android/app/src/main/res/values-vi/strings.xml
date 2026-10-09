@@ -13,12 +13,12 @@
     <string name="hosts_empty">Chưa có máy chủ — nhấn Thêm máy chủ</string>
     <string name="host_add">Thêm máy chủ</string>
     <string name="host_add_title">Thêm máy chủ</string>
+    <string name="host_edit_title">Sửa máy chủ</string>
+    <string name="host_save">Lưu</string>
     <string name="host_name">Tên</string>
     <string name="host_ip">IP hoặc IP:cổng</string>
     <string name="host_description">Mô tả (không bắt buộc)</string>
     <string name="host_delete">Xóa máy chủ</string>
-    <string name="host_delete_confirm">Xóa máy chủ này?</string>
-    <string name="host_delete_hint">Nhấn giữ một máy chủ để xóa</string>
     <string name="cancel">Hủy</string>
     <string name="address_label">Địa chỉ PC (IP:cổng)</string>
     <string name="address_hint">192.168.1.10 (cổng mặc định 5000)</string>

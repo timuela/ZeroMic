@@ -226,6 +226,8 @@ class DesktopApp:
         self._window.regeneratePinRequested.connect(self._on_regenerate_pin)
         self._window.pinChanged.connect(self._on_pin_changed)
         self._window.startupChanged.connect(self._on_startup_changed)
+        self._window.closeToTrayChanged.connect(self._on_close_to_tray_changed)
+        self._window.quitRequested.connect(self._quit)
         self._window.addressSelected.connect(self._on_address_selected)
         self._window.portChangeRequested.connect(self._on_port_requested)
 
@@ -275,6 +277,7 @@ class DesktopApp:
         self._apply_saved_port()
         self._apply_pin_settings()
         self._window.set_startup_enabled(startup.is_enabled())
+        self._apply_close_to_tray()
         # Listen from the start so the host is ready for a phone without the
         # user having to press Connect; it waits for the output device below.
         self._auto_listen_pending = True
@@ -473,6 +476,15 @@ class DesktopApp:
             getattr(self._server, "pin", "") or "",
             getattr(self._server, "require_pin", True),
         )
+
+    def _apply_close_to_tray(self):
+        saved = self._settings.value("close_to_tray")
+        enabled = True if saved is None else str(saved).lower() in ("1", "true")
+        self._window.set_close_to_tray(enabled)
+
+    def _on_close_to_tray_changed(self, enabled):
+        self._settings.setValue("close_to_tray", bool(enabled))
+        self._settings.sync()
 
     def _on_startup_changed(self, enabled):
         if not startup.set_enabled(enabled):

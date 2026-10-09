@@ -1,10 +1,14 @@
-# Build the Windows installer (Inno Setup) from the built host exe.
+# Build the Windows installer (Inno Setup) from the one-dir host build.
 #
 #   powershell -ExecutionPolicy Bypass -File dev\build-installer.ps1
 #
 # Needs Inno Setup 6 (https://jrsoftware.org/isdl.php). Produces
-# dist\ZeroMic-Setup-<version>.exe next to the portable exe.
+# dist\ZeroMic-Host-Setup-<version>-<target>.exe.
 #
+param(
+    [string]$Target = 'windows-x64'
+)
+
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
 
@@ -30,15 +34,15 @@ if (-not $iscc) {
 }
 if (-not $iscc) { throw "Inno Setup not found. Install it from https://jrsoftware.org/isdl.php" }
 
-Write-Host "Building ZeroMic installer $version ..."
+Write-Host "Building ZeroMic installer $version ($Target) ..."
 Write-Host "  payload: $dist"
 Write-Host "  iscc: $iscc"
 
 $iss = Join-Path $repo 'installer\zeromic.iss'
-& $iscc "/DAppVersion=$version" "/DDistDir=$dist" $iss
+& $iscc "/DAppVersion=$version" "/DTargetName=$Target" "/DDistDir=$dist" $iss
 if ($LASTEXITCODE -ne 0) { throw "ISCC failed with exit code $LASTEXITCODE" }
 
-$out = Join-Path $repo "dist\ZeroMic-Setup-$version.exe"
+$out = Join-Path $repo "dist\ZeroMic-Host-Setup-$version-$Target.exe"
 if (-not (Test-Path $out)) { throw "ISCC finished but $out is missing." }
 
 Write-Host ""
