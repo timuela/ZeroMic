@@ -219,6 +219,7 @@ class DesktopApp:
         self._window.aboutRequested.connect(self._on_about)
         self._window.languageChanged.connect(self._on_language_changed)
         self._window.requirePinChanged.connect(self._on_require_pin_changed)
+        self._window.regeneratePinRequested.connect(self._on_regenerate_pin)
         self._window.pinChanged.connect(self._on_pin_changed)
         self._window.addressSelected.connect(self._on_address_selected)
         self._window.portChangeRequested.connect(self._on_port_requested)
@@ -452,6 +453,18 @@ class DesktopApp:
         self._settings.setValue("require_pin", bool(enabled))
         self._settings.sync()
         self._window.set_pin(getattr(self._server, "pin", "") or "", bool(enabled))
+
+    def _on_regenerate_pin(self):
+        regenerate = getattr(self._server, "regenerate_pin", None)
+        if regenerate is not None:
+            try:
+                regenerate()
+            except Exception:
+                log.debug("could not regenerate the PIN", exc_info=True)
+        self._window.set_pin(
+            getattr(self._server, "pin", "") or "",
+            getattr(self._server, "require_pin", True),
+        )
 
     def _on_pin_changed(self, value):
         apply_pin = getattr(self._server, "set_pin", None)

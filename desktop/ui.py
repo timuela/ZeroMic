@@ -56,13 +56,12 @@ BUTTON_ACTIVE_FG = QColor(0xFF, 0xFF, 0xFF)
 BUTTON_MUTED_BG = QColor(0xFF, 0xB3, 0xAE)
 BUTTON_MUTED_FG = QColor(0x4A, 0x00, 0x05)
 
-SETTINGS_PANEL_WIDTH = 300
+SETTINGS_PANEL_WIDTH = 320
 
-# Shared look and width for the editable settings fields (PIN, Port).
-FIELD_STYLE = (
-    "font-family: monospace; font-size: 16px; font-weight: bold; color: #4285F4;"
-)
-FIELD_WIDTH = 110
+# Shared geometry for the PIN/Port rows, so their labels and fields line up.
+FIELD_STYLE = "font-family: monospace; font-size: 15px;"
+FIELD_WIDTH = 88
+LABEL_WIDTH = 32
 
 _pixmap_cache = {}
 _tinted_cache = {}
@@ -233,6 +232,7 @@ class MainWindow(QMainWindow):
     aboutRequested = Signal()
     languageChanged = Signal(str)
     requirePinChanged = Signal(bool)
+    regeneratePinRequested = Signal()
     pinChanged = Signal(str)
     installReminderAcknowledged = Signal()
     addressSelected = Signal(str)
@@ -497,6 +497,7 @@ class MainWindow(QMainWindow):
 
         pin_row = QHBoxLayout()
         self._pin_label = QLabel(self._t("settings_pin", "PIN"))
+        self._pin_label.setFixedWidth(LABEL_WIDTH)
         pin_row.addWidget(self._pin_label)
         self._pin_edit = QLineEdit()
         self._pin_edit.setMaxLength(10)
@@ -511,11 +512,18 @@ class MainWindow(QMainWindow):
         self._pin_apply_button.setObjectName("flatButton")
         self._pin_apply_button.clicked.connect(self._emit_pin_changed)
         pin_row.addWidget(self._pin_apply_button)
+        self._new_pin_button = QPushButton(self._t("settings_new_pin", "New PIN"))
+        self._new_pin_button.setObjectName("flatButton")
+        self._new_pin_button.clicked.connect(
+            lambda: self.regeneratePinRequested.emit()
+        )
+        pin_row.addWidget(self._new_pin_button)
         pin_row.addStretch(1)
         layout.addLayout(pin_row)
 
         port_row = QHBoxLayout()
         self._port_label = QLabel(self._t("host_port", "Port"))
+        self._port_label.setFixedWidth(LABEL_WIDTH)
         port_row.addWidget(self._port_label)
         self._port_input = QLineEdit()
         self._port_input.setValidator(QIntValidator(1024, 65535, self))
@@ -666,6 +674,7 @@ class MainWindow(QMainWindow):
         self._require_pin_check.setText(self._t("settings_require_pin", "Require PIN"))
         self._pin_label.setText(self._t("settings_pin", "PIN"))
         self._pin_apply_button.setText(self._t("settings_pin_apply", "Apply"))
+        self._new_pin_button.setText(self._t("settings_new_pin", "New PIN"))
         self._refresh_pin_labels()
         self._settings_button.setToolTip(self._t("settings_title", "Settings"))
         self._about_button.setText(self._t("header_about", "About"))
