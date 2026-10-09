@@ -147,6 +147,9 @@ A: This occurs because we use a self-signed certificate for LAN HTTPS (a mandato
 **Q: Why did my PC sound stop working after setup? (Windows)**
 A: Windows sometimes sets the new virtual device as the default "Speaker". Click the volume icon in your taskbar and manually switch back to your original speakers/headphones.
 
+**Q: The app opens but there is no audio? (Linux)**
+A: Install PortAudio: `sudo apt install libportaudio2`. ZeroMic needs it to reach the virtual sink, and it is a system library rather than something bundled into the binary.
+
 **Q: "pactl command not found" on Linux?**
 A: Ensure PulseAudio or PipeWire is installed. Most desktop distros include them. If missing: `sudo apt install pulseaudio-utils` (Debian/Ubuntu) or `sudo pacman -S pulseaudio` (Arch).
 

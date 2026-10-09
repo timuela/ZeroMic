@@ -1,7 +1,13 @@
 import queue
 
 import numpy as np
-import sounddevice as sd
+
+try:
+    import sounddevice as sd
+except Exception:  # pragma: no cover - depends on the host
+    # Missing PortAudio must not stop the app from starting; opening the
+    # device reports it instead. See desktop/devices.py.
+    sd = None
 
 SAMPLE_RATE = 48000
 BLOCK_FRAMES = 960
@@ -36,6 +42,12 @@ class AudioOutput:
 
     def start(self, device_index):
         self.stop()
+
+        if sd is None:
+            raise RuntimeError(
+                "PortAudio is not available, so audio cannot be played. "
+                "On Linux install it with: sudo apt install libportaudio2"
+            )
 
         info = sd.query_devices(device_index)
         self._channels = max(1, min(2, int(info["max_output_channels"])))

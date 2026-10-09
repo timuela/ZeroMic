@@ -145,6 +145,9 @@ A: 因为我们使用了自签名证书来开启局域网 HTTPS（WebRTC 的强�
 **Q: 为什么装完之后电脑突然没声音了？（Windows）**
 A: Windows 可能会将新安装的虚拟声卡设为默认扬声器。请点击电脑右下角的喇叭图标，手动切换回原来的扬声器设备。
 
+**Q: Linux 下软件能打开但完全没有声音？**
+A: 请安装 PortAudio：`sudo apt install libportaudio2`。ZeroMic 需要通过它把音频写入虚拟声卡，且该库是系统库，并未打包进可执行文件。
+
 **Q: Linux 下提示 pactl 命令不可用？**
 A: 请确认已安装 PulseAudio 或 PipeWire。大多数桌面发行版已自带。如果缺失：`sudo apt install pulseaudio-utils`（Debian/Ubuntu）或 `sudo pacman -S pulseaudio`（Arch）。
 
