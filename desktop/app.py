@@ -466,6 +466,9 @@ class DesktopApp:
                 regenerate()
             except Exception:
                 log.debug("could not regenerate the PIN", exc_info=True)
+        # A fresh PIN is meant to be per-run, so drop the remembered one.
+        self._settings.setValue("pin", "")
+        self._settings.sync()
         self._window.set_pin(
             getattr(self._server, "pin", "") or "",
             getattr(self._server, "require_pin", True),

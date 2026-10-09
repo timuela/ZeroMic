@@ -17,7 +17,7 @@ else:
     base_path = os.path.dirname(os.path.abspath(__file__))
 
 # 常量
-VERSION = "v0.1.24"
+VERSION = "v0.1.25"
 DEFAULT_PORT = 5000
 
 # 单实例检测
@@ -95,6 +95,9 @@ server_port = SERVER_PORT
 
 # 每次启动服务随机生成的一次性 PIN；手机端需在 join 时提供才能连接
 server_pin = ""
+# 用户在设置里指定的 PIN：服务启动/重启（换端口）时优先使用它，否则会被新
+# 生成的随机 PIN 覆盖——服务现在跑在后台线程上，和界面应用 PIN 存在竞态。
+custom_pin = ""
 require_pin = True
 
 
@@ -322,7 +325,7 @@ def start_server(port):
             '0.0.0.0', port, app, ssl_context='adhoc', threaded=True
         )
         server_port = port
-        server_pin = _generate_pin()
+        server_pin = custom_pin or _generate_pin()
 
     threading.Thread(target=_server.serve_forever, daemon=True).start()
 
@@ -363,14 +366,16 @@ class ServerControl:
             server_pin = _generate_pin()
 
     def regenerate_pin(self):
-        global server_pin
+        global server_pin, custom_pin
+        custom_pin = ""
         server_pin = _generate_pin()
         return server_pin
 
     def set_pin(self, value):
         """Use a user-chosen PIN, or fall back to a random one when empty."""
-        global server_pin
+        global server_pin, custom_pin
         value = str(value).strip()
+        custom_pin = value
         server_pin = value if value else _generate_pin()
         return server_pin
 
