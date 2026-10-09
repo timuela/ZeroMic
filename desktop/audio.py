@@ -1,13 +1,32 @@
 import queue
 
-import numpy as np
+# numpy and PortAudio are imported lazily: together they are ~0.8s of startup
+# cost that only matters once audio is actually flowing. Missing PortAudio must
+# not stop the app starting - opening the device reports it instead.
+_np = None
+_sd = None
+_sd_error = ""
 
-try:
-    import sounddevice as sd
-except Exception:  # pragma: no cover - depends on the host
-    # Missing PortAudio must not stop the app from starting; opening the
-    # device reports it instead. See desktop/devices.py.
-    sd = None
+
+def _numpy():
+    global _np
+    if _np is None:
+        import numpy
+        _np = numpy
+    return _np
+
+
+def _sounddevice():
+    global _sd, _sd_error
+    if _sd is None and not _sd_error:
+        try:
+            import sounddevice as sd
+        except Exception as exc:  # pragma: no cover - depends on the host
+            _sd_error = str(exc)
+        else:
+            _sd = sd
+    return _sd
+
 
 SAMPLE_RATE = 48000
 BLOCK_FRAMES = 960
@@ -43,6 +62,7 @@ class AudioOutput:
     def start(self, device_index):
         self.stop()
 
+        sd = _sounddevice()
         if sd is None:
             raise RuntimeError(
                 "PortAudio is not available, so audio cannot be played. "
@@ -86,6 +106,7 @@ class AudioOutput:
         if pcm is None or len(pcm) == 0:
             return
 
+        np = _numpy()
         if pcm.shape[1] != self._channels:
             if pcm.shape[1] == 1:
                 pcm = np.repeat(pcm, self._channels, axis=1)
@@ -109,6 +130,7 @@ class AudioOutput:
                 return
 
     def _callback(self, outdata, frames, time_info, status):
+        np = _numpy()
         written = 0
         while written < frames:
             if self._partial is None or len(self._partial) == 0:

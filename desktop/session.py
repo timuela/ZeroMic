@@ -1,7 +1,6 @@
 import logging
 
 from desktop.audio import AudioOutput
-from desktop.signaling import SignalingClient
 from desktop.webrtc import WebRtcReceiver
 
 log = logging.getLogger(__name__)
@@ -23,7 +22,9 @@ class DesktopSession:
             on_ice=self._on_local_candidate,
             on_state=self._on_rtc_state,
         )
-        self._signaling = SignalingClient(self)
+        # Created in start(), on the asyncio thread, so importing the socket.io
+        # client is not part of the window's startup path.
+        self._signaling = None
         self._schedule = None
         self._muted = False
         self._active = False
@@ -36,9 +37,13 @@ class DesktopSession:
     # lifecycle
     # ------------------------------------------------------------------
     async def start(self, url, device_index):
+        from desktop.signaling import SignalingClient
+
         self._active = True
         self._feedback.set_rtc_state("new")
         self._open_device(device_index)
+        if self._signaling is None:
+            self._signaling = SignalingClient(self)
         try:
             await self._signaling.connect(url)
         except Exception as exc:
@@ -48,7 +53,8 @@ class DesktopSession:
     async def stop(self):
         self._active = False
         await self._webrtc.close()
-        await self._signaling.disconnect()
+        if self._signaling is not None:
+            await self._signaling.disconnect()
         self._audio.stop()
         # Late callbacks from the closing peer connection are ignored now that
         # the session is inactive, so clear the state the UI is showing.
@@ -82,7 +88,12 @@ class DesktopSession:
         self._feedback.set_muted(self._muted)
 
         # Tell the phone to follow, but never echo back to ourselves.
-        if broadcast and self._signaling.connected and self._schedule is not None:
+        if (
+            broadcast
+            and self._signaling is not None
+            and self._signaling.connected
+            and self._schedule is not None
+        ):
             self._schedule(self._signaling.emit_toggle_mute())
 
     # ------------------------------------------------------------------
@@ -141,7 +152,11 @@ class DesktopSession:
     async def _on_local_candidate(self, candidate, sdp_mid, sdp_m_line_index):
         if not self._active:
             return
-        if candidate is None or not self._signaling.connected:
+        if (
+            self._signaling is None
+            or candidate is None
+            or not self._signaling.connected
+        ):
             return
         await self._signaling.emit_candidate(candidate, sdp_mid, sdp_m_line_index)
 

@@ -1,26 +1,35 @@
-try:
-    import sounddevice as sd
-except Exception as exc:  # pragma: no cover - depends on the host
-    # PortAudio is a system library on Linux and sounddevice raises on import
-    # when it is missing. That must not take the whole app down, so remember
-    # why and degrade to "no audio devices" instead.
-    sd = None
-    IMPORT_ERROR = str(exc)
-else:
-    IMPORT_ERROR = ""
+# PortAudio is imported lazily. Importing sounddevice initialises PortAudio,
+# which costs ~0.6s and blocks the window if it happens at startup; it may also
+# be missing entirely on Linux, which must not take the app down.
+_sd = None
+_sd_error = ""
+
+
+def _sounddevice():
+    global _sd, _sd_error
+    if _sd is None and not _sd_error:
+        try:
+            import sounddevice as sd
+        except Exception as exc:  # pragma: no cover - depends on the host
+            _sd_error = str(exc)
+        else:
+            _sd = sd
+    return _sd
 
 
 def audio_available():
-    return sd is not None
+    return _sounddevice() is not None
 
 
 def unavailable_reason():
-    return IMPORT_ERROR
+    _sounddevice()
+    return _sd_error
 
 
 def list_output_devices():
     """Return a list of (index, name) for every device that can play audio."""
     result = []
+    sd = _sounddevice()
     if sd is None:
         return result
 
@@ -50,6 +59,7 @@ def find_output_index(keyword, devices):
 
 
 def default_output_index():
+    sd = _sounddevice()
     if sd is None:
         return None
     try:

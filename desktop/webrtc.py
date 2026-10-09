@@ -1,20 +1,17 @@
 import asyncio
 import logging
 
-import numpy as np
-from aioice import Candidate
-from aiortc import (
-    RTCConfiguration,
-    RTCIceCandidate,
-    RTCPeerConnection,
-    RTCSessionDescription,
-)
+# aiortc (and the aioice/numpy/av it drags in) is ~0.7s of imports that are not
+# needed until a phone actually sends an offer, so it is imported at first use
+# to keep it off the startup path.
 
 log = logging.getLogger(__name__)
 
 
 def frame_to_pcm(frame):
     """Convert a decoded audio frame to an int16 array shaped (samples, channels)."""
+    import numpy as np
+
     data = frame.to_ndarray()
     channels = frame.layout.nb_channels
 
@@ -35,6 +32,8 @@ def frame_to_pcm(frame):
 
 def candidate_to_sdp(candidate):
     """Rebuild the SDP candidate line from an aiortc RTCIceCandidate."""
+    from aioice import Candidate
+
     parsed = Candidate(
         foundation=candidate.foundation,
         component=candidate.component,
@@ -52,6 +51,9 @@ def candidate_to_sdp(candidate):
 
 def candidate_from_string(candidate, sdp_mid, sdp_m_line_index):
     """Parse a trickled SDP candidate string into an aiortc RTCIceCandidate."""
+    from aioice import Candidate
+    from aiortc import RTCIceCandidate
+
     raw = candidate.strip()
     if raw.startswith("a="):
         raw = raw[2:]
@@ -86,6 +88,12 @@ class WebRtcReceiver:
         self._pump_task = None
 
     async def handle_offer(self, offer_sdp):
+        from aiortc import (
+            RTCConfiguration,
+            RTCPeerConnection,
+            RTCSessionDescription,
+        )
+
         await self.close()
 
         pc = RTCPeerConnection(RTCConfiguration(iceServers=[]))

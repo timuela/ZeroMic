@@ -4,8 +4,6 @@ import socket
 import threading
 import time
 import secrets
-import OpenSSL       # 确保 PyInstaller 能检测到 adhoc SSL 的依赖
-import cryptography
 
 from flask import Flask, send_from_directory, jsonify, request
 from flask_socketio import SocketIO, emit
@@ -19,7 +17,7 @@ else:
     base_path = os.path.dirname(os.path.abspath(__file__))
 
 # 常量
-VERSION = "v0.1.23"
+VERSION = "v0.1.24"
 DEFAULT_PORT = 5000
 
 # 单实例检测
@@ -312,6 +310,10 @@ def start_server(port):
     :raises OSError: 端口被占用等问题由调用方决定如何提示。
     """
     global _server, server_port, server_pin
+    # Imported here rather than at module load, so the TLS/ad-hoc stack is not
+    # on the startup path; PyInstaller still sees them and bundles them.
+    import OpenSSL  # noqa: F401 - keeps the adhoc SSL deps in the bundle
+    import cryptography  # noqa: F401
     from werkzeug.serving import make_server
 
     with _server_lock:
@@ -330,6 +332,13 @@ def start_server(port):
         print(f"手机请访问: https://{address}:{port}")
     print("=========================================\n")
     return True
+
+
+def _start_server_quietly(port):
+    try:
+        start_server(port)
+    except Exception as exc:
+        print(f"[ZeroMic] 无法启动服务: {exc}")
 
 
 class ServerControl:
@@ -381,11 +390,12 @@ if __name__ == '__main__':
         notify_already_running()
         sys.exit(0)
 
-    try:
-        start_server(server_port)
-    except Exception as exc:
-        print(f"[ZeroMic] 无法启动服务: {exc}")
-        sys.exit(1)
+    # Bring the server up on a worker thread so the window is on screen first:
+    # the ad-hoc certificate takes a moment, and doing this on the UI thread
+    # right after showing the window is what used to blank the taskbar icon.
+    threading.Thread(
+        target=_start_server_quietly, args=(server_port,), daemon=True
+    ).start()
 
     icon_path = None
     for icon_rel in ('desktop/icon.png', 'icon.png', 'icon.ico', 'icon.icns'):
