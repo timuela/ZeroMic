@@ -36,6 +36,34 @@ def _load_icon(path):
     return icon
 
 
+def _apply_windows_taskbar_identity():
+    """Point the taskbar at our icon, but only when running from source.
+
+    From source the process is python.exe, and Windows draws the taskbar button
+    from that host process's identity - Python's own logo - no matter what icon
+    the window carries. An explicit AppUserModelID that no shortcut owns makes
+    the shell fall back to the window icon instead, which is the multi-size
+    ZeroMic icon run_desktop sets.
+
+    The built exe must not do this. It has no Start Menu shortcut registering
+    an AppUserModelID, so an explicit one leaves the shell with no icon to show
+    and it draws its generic placeholder; packaged, Windows already derives the
+    identity from the exe path, whose embedded icon is correct.
+
+    Must run before the QApplication is created.
+    """
+    if sys.platform != "win32" or getattr(sys, "frozen", False):
+        return
+    try:
+        import ctypes
+
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(
+            "ZeroMic.Desktop.Host"
+        )
+    except Exception:
+        log.debug("could not set the AppUserModelID", exc_info=True)
+
+
 def _detect_language():
     tag = ""
     try:
@@ -107,6 +135,8 @@ class Feedback(QObject):
     driverStateChanged = Signal(bool)
     driverFinished = Signal(bool, str)
     uninstallFinished = Signal(bool, str)
+    addressesReady = Signal(int, list)
+    devicesReady = Signal(list, object)
 
     def set_presence(self, connected):
         self.presenceChanged.emit(bool(connected))
@@ -206,9 +236,15 @@ class DesktopApp:
         self._feedback.driverStateChanged.connect(self._window.set_driver_installed)
         self._feedback.driverFinished.connect(self._on_driver_finished)
         self._feedback.uninstallFinished.connect(self._on_uninstall_finished)
+        self._feedback.addressesReady.connect(self._apply_addresses)
+        self._feedback.devicesReady.connect(self._apply_devices)
 
     def _build_tray(self, icon_path):
-        tray = QSystemTrayIcon(QIcon(icon_path) if icon_path else QIcon(), self._window)
+        # Same multi-size icon as the window: the tray draws it at 16px, where a
+        # lone 256px pixmap has to be scaled down.
+        tray = QSystemTrayIcon(
+            _load_icon(icon_path) if icon_path else QIcon(), self._window
+        )
 
         menu = QMenu()
         self._show_action = QAction(self._t("tray_show", "Show Window"), menu)
@@ -236,9 +272,38 @@ class DesktopApp:
     def start(self):
         self._window.show()
         self._apply_saved_port()
-        self._refresh_addresses()
-        self._refresh_devices()
+        # Enumerating LAN addresses and audio devices shells out to PowerShell
+        # and PortAudio and can take seconds. Run on the UI thread right after
+        # show(), it blocks the window - and while the window cannot answer the
+        # shell's WM_GETICON, Explorer draws its generic placeholder for the
+        # taskbar button. Gather off-thread and apply through signals instead.
+        threading.Thread(target=self._gather_startup, daemon=True).start()
         threading.Thread(target=self._check_driver, daemon=True).start()
+
+    def _gather_startup(self):
+        try:
+            port = self._server.port
+            addresses = [f"https://{ip}:{port}" for ip in self._server.ips()]
+            self._feedback.addressesReady.emit(port, addresses)
+        except Exception:
+            log.debug("could not enumerate addresses", exc_info=True)
+
+        try:
+            devices = list_output_devices()
+        except Exception:
+            devices = []
+        current = find_output_index(self._platform.driver_match_keyword, devices)
+        if current is None:
+            current = default_output_index()
+        self._feedback.devicesReady.emit(devices, current)
+
+    def _apply_addresses(self, port, addresses):
+        self._window.set_port(port)
+        self._window.set_addresses(addresses)
+
+    def _apply_devices(self, devices, current):
+        self._current_device = current
+        self._window.set_devices(devices, current)
 
     def _apply_saved_port(self):
         saved = self._settings.value("port")
@@ -263,9 +328,8 @@ class DesktopApp:
 
     def _refresh_addresses(self):
         port = self._server.port
-        self._window.set_port(port)
         addresses = [f"https://{ip}:{port}" for ip in self._server.ips()]
-        self._window.set_addresses(addresses)
+        self._apply_addresses(port, addresses)
 
     def _on_address_selected(self, url):
         self._window.set_selected_address(url)
@@ -303,8 +367,7 @@ class DesktopApp:
         current = find_output_index(self._platform.driver_match_keyword, devices)
         if current is None:
             current = default_output_index()
-        self._current_device = current
-        self._window.set_devices(devices, current)
+        self._apply_devices(devices, current)
 
     def _check_driver(self):
         try:
@@ -450,24 +513,15 @@ class DesktopApp:
 
 
 def run_desktop(platform, version, webui_dir, icon_path=None, server=None):
+    # Before QApplication, so the window it creates already belongs to this
+    # taskbar identity. See the helper for why this is needed.
+    _apply_windows_taskbar_identity()
+
     app = QApplication.instance()
     if app is None:
         app = QApplication(sys.argv)
     app.setApplicationName("ZeroMic")
     app.setQuitOnLastWindowClosed(False)
-
-    # Deliberately no SetCurrentProcessExplicitAppUserModelID() here.
-    #
-    # Windows 11 resolves a taskbar button's icon from the icon registered
-    # against the process's AppUserModelID, not from the window. A portable
-    # exe has no shortcut registering one, so an explicit custom ID makes the
-    # shell fall back to the generic placeholder - and because that ID stayed
-    # the same across every build while the exe name changed, the broken entry
-    # persisted from version to version.
-    #
-    # Left alone, Windows derives the ID from the exe path, whose embedded
-    # icon is correct, and grouping still works because the onefile bootloader
-    # and the child process are the same exe.
 
     if icon_path:
         icon = _load_icon(icon_path)
