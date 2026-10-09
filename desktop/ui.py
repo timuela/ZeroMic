@@ -342,22 +342,6 @@ class MainWindow(QMainWindow):
         self._tutorial_pin.setVisible(False)
         tutorial.addWidget(self._tutorial_pin)
 
-        port_row = QHBoxLayout()
-        self._port_label = QLabel(self._t("host_port", "Port"))
-        port_row.addWidget(self._port_label)
-
-        self._port_input = QSpinBox()
-        self._port_input.setRange(1024, 65535)
-        self._port_input.setValue(5000)
-        port_row.addWidget(self._port_input)
-
-        self._apply_port_button = QPushButton(self._t("host_apply", "Apply"))
-        self._apply_port_button.setObjectName("flatButton")
-        self._apply_port_button.clicked.connect(self._on_apply_port)
-        port_row.addWidget(self._apply_port_button)
-        port_row.addStretch(1)
-        tutorial.addLayout(port_row)
-
         self._tutorial_warn = QLabel(self._t("tutorial_warn", "The \u201cNot Secure\u201d warning is normal."))
         self._tutorial_warn.setObjectName("warnLabel")
         self._tutorial_warn.setAlignment(Qt.AlignCenter)
@@ -526,6 +510,20 @@ class MainWindow(QMainWindow):
             lambda: self.regeneratePinRequested.emit()
         )
         layout.addWidget(self._new_pin_button)
+
+        port_row = QHBoxLayout()
+        self._port_label = QLabel(self._t("host_port", "Port"))
+        port_row.addWidget(self._port_label)
+        self._port_input = QSpinBox()
+        self._port_input.setRange(1024, 65535)
+        self._port_input.setValue(5000)
+        port_row.addWidget(self._port_input)
+        self._apply_port_button = QPushButton(self._t("host_apply", "Apply"))
+        self._apply_port_button.setObjectName("flatButton")
+        self._apply_port_button.clicked.connect(self._on_apply_port)
+        port_row.addWidget(self._apply_port_button)
+        port_row.addStretch(1)
+        layout.addLayout(port_row)
 
         self._settings_more_label = QLabel(self._t("settings_more", "More"))
         self._settings_more_label.setObjectName("statusTitle")
