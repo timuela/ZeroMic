@@ -76,5 +76,13 @@
   "about_body": "WebRTC over LAN - no cloud, no account.",
   "lang_en": "English",
   "lang_zh": "中文",
-  "lang_vi": "Tiếng Việt"
+  "lang_vi": "Tiếng Việt",
+
+  "settings_require_pin": "Require PIN",
+  "settings_new_pin": "New PIN",
+  "settings_pin": "PIN",
+  "m_pin_label": "PIN",
+  "m_pin_title": "PIN Required",
+  "m_pin_required": "Enter the PIN shown on the PC",
+  "m_pin_wrong": "Wrong PIN. Check the code shown on the PC."
 }

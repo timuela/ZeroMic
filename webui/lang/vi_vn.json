@@ -76,5 +76,13 @@
   "about_body": "WebRTC qua mạng LAN — không đám mây, không tài khoản.",
   "lang_en": "English",
   "lang_zh": "中文",
-  "lang_vi": "Tiếng Việt"
+  "lang_vi": "Tiếng Việt",
+
+  "settings_require_pin": "Yêu cầu PIN",
+  "settings_new_pin": "PIN mới",
+  "settings_pin": "PIN",
+  "m_pin_label": "PIN",
+  "m_pin_title": "Cần mã PIN",
+  "m_pin_required": "Nhập mã PIN hiển thị trên PC",
+  "m_pin_wrong": "Sai mã PIN. Kiểm tra mã hiển thị trên PC."
 }

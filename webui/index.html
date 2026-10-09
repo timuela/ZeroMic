@@ -165,6 +165,10 @@
         <mdui-icon name="computer" style="opacity: 0.7;"></mdui-icon>
     </div>
 
+    <div class="control-card" style="padding: 12px 20px;">
+        <mdui-text-field id="pin-input" label="PIN" data-i18n="m_pin_label" data-i18n-target="label" type="number" style="width: 100%;"></mdui-text-field>
+    </div>
+
     <div class="control-card">
         <mdui-icon name="volume_down" style="opacity: 0.7;"></mdui-icon>
         <mdui-slider id="gain-slider" min="0" max="3" step="0.1" value="1" style="flex-grow: 1;"></mdui-slider>
@@ -268,13 +272,43 @@ const socket = io(window.location.origin);
     document.getElementById('btn-settings-close').addEventListener('click', () => { settingsDrawer.open = false; });
     document.getElementById('settings-language-select').addEventListener('change', (e) => setLanguage(e.target.value));
 
+    function pinValue() {
+        const el = document.getElementById('pin-input');
+        return el ? (el.value || '').trim() : '';
+    }
+
+    function joinSession() {
+        socket.emit('join', { role: 'mobile', pin: pinValue() });
+    }
+
     socket.on('connect', () => {
-        socket.emit('join', { role: 'mobile' });
+        joinSession();
         document.getElementById('connection-dot').classList.replace('disconnected', 'connected');
         const text = document.getElementById('connection-text');
         text.innerText = t('m_connected');
         text.style.color = '#4CAF50';
     });
+
+    socket.on('auth_failed', () => {
+        const dot = document.getElementById('connection-dot');
+        dot.classList.remove('connected');
+        dot.classList.add('disconnected');
+        const text = document.getElementById('connection-text');
+        text.innerText = t('m_pin_required');
+        text.style.color = '#ff9800';
+        mdui.alert({
+            headline: t('m_pin_title'),
+            description: t('m_pin_wrong'),
+            confirmText: t('m_alert_ok')
+        });
+    });
+
+    const pinInput = document.getElementById('pin-input');
+    if (pinInput) {
+        pinInput.addEventListener('change', () => {
+            if (socket.connected) joinSession();
+        });
+    }
 
     socket.on('answer', async (data) => {
         if(peerConnection) {

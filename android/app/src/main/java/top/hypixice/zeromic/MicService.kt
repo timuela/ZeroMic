@@ -43,6 +43,7 @@ class MicService : Service(), SignalingClient.Listener, WebRtcClient.Listener {
     private var wifiLock: WifiManager.WifiLock? = null
 
     @Volatile private var muted = false
+    @Volatile private var pin = ""
 
     // A session only exists between beginSession() and teardown(). Callbacks
     // that arrive late (the socket reporting a disconnect, a peer connection
@@ -81,8 +82,9 @@ class MicService : Service(), SignalingClient.Listener, WebRtcClient.Listener {
             else -> {
                 val address = intent?.getStringExtra(EXTRA_ADDRESS) ?: ""
                 val gain = intent?.getFloatExtra(EXTRA_GAIN, 1f) ?: 1f
+                val pin = intent?.getStringExtra(EXTRA_PIN) ?: ""
                 startForegroundCompat()
-                beginSession(address, gain)
+                beginSession(address, gain, pin)
             }
         }
         return START_STICKY
@@ -109,7 +111,7 @@ class MicService : Service(), SignalingClient.Listener, WebRtcClient.Listener {
         notifyState()
     }
 
-    private fun beginSession(address: String, gain: Float) {
+    private fun beginSession(address: String, gain: Float, pinCode: String) {
         val parsed = parseAddress(address)
         if (parsed == null) {
             _state.value = MicState(phase = MicPhase.ERROR, gain = gain, error = getString(R.string.error_invalid_address))
@@ -118,6 +120,7 @@ class MicService : Service(), SignalingClient.Listener, WebRtcClient.Listener {
 
         acquireLocks()
         muted = false
+        pin = pinCode.trim()
         active = true
         desktopOnline = false
         _state.value = MicState(phase = MicPhase.CONNECTING, gain = gain)
@@ -154,7 +157,7 @@ class MicService : Service(), SignalingClient.Listener, WebRtcClient.Listener {
         // Our own join makes the server rebroadcast presence, so forget the
         // previous answer and let that decide whether to (re)start WebRTC.
         desktopOnline = false
-        signaling?.join()
+        signaling?.join(pin)
     }
 
     override fun onSignalingDisconnected(reason: String?) {
@@ -184,6 +187,17 @@ class MicService : Service(), SignalingClient.Listener, WebRtcClient.Listener {
     }
 
     override fun onPeerReady() {}
+
+    override fun onAuthFailed() {
+        if (!active) return
+        val gain = _state.value.gain
+        teardown()
+        _state.value = MicState(
+            phase = MicPhase.ERROR,
+            gain = gain,
+            error = getString(R.string.error_pin_wrong)
+        )
+    }
 
     override fun onAnswer(answerSdp: String) {
         if (!active) return
@@ -324,16 +338,18 @@ class MicService : Service(), SignalingClient.Listener, WebRtcClient.Listener {
         const val ACTION_TOGGLE_MUTE = "top.hypixice.zeromic.TOGGLE_MUTE"
         const val EXTRA_ADDRESS = "address"
         const val EXTRA_GAIN = "gain"
+        const val EXTRA_PIN = "pin"
 
         private const val CHANNEL_ID = "zeromic_mic"
         private const val NOTIFICATION_ID = 1
         private const val DEFAULT_PORT = 5000
 
-        fun start(context: Context, address: String, gain: Float) {
+        fun start(context: Context, address: String, gain: Float, pin: String) {
             val intent = Intent(context, MicService::class.java).apply {
                 action = ACTION_START
                 putExtra(EXTRA_ADDRESS, address)
                 putExtra(EXTRA_GAIN, gain)
+                putExtra(EXTRA_PIN, pin)
             }
             ContextCompat.startForegroundService(context, intent)
         }

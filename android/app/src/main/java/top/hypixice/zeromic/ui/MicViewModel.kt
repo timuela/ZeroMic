@@ -43,6 +43,9 @@ class MicViewModel(application: Application) : AndroidViewModel(application) {
     var language by mutableStateOf(prefs.language)
         private set
 
+    var pin by mutableStateOf(prefs.pin)
+        private set
+
     private val _state = MutableStateFlow(MicState(gain = prefs.gain))
     val state: StateFlow<MicState> = _state.asStateFlow()
 
@@ -71,6 +74,11 @@ class MicViewModel(application: Application) : AndroidViewModel(application) {
 
     fun onAddressChange(value: String) {
         address = value
+    }
+
+    fun onPinChange(value: String) {
+        pin = value
+        prefs.pin = value
     }
 
     fun selectProfile(profile: HostProfile) {
@@ -107,7 +115,8 @@ class MicViewModel(application: Application) : AndroidViewModel(application) {
     fun connect() {
         val target = address.trim()
         prefs.address = target
-        MicService.start(getApplication(), target, gain)
+        prefs.pin = pin
+        MicService.start(getApplication(), target, gain, pin)
     }
 
     fun disconnect() {

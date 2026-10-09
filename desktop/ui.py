@@ -15,6 +15,7 @@ from PySide6.QtCore import (
 from PySide6.QtGui import QColor, QPainter, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
+    QCheckBox,
     QComboBox,
     QFrame,
     QHBoxLayout,
@@ -218,6 +219,8 @@ class MainWindow(QMainWindow):
     uninstallDriverRequested = Signal()
     aboutRequested = Signal()
     languageChanged = Signal(str)
+    requirePinChanged = Signal(bool)
+    regeneratePinRequested = Signal()
     installReminderAcknowledged = Signal()
     addressSelected = Signal(str)
     portChangeRequested = Signal(int)
@@ -234,6 +237,8 @@ class MainWindow(QMainWindow):
         self._active = False
         self._level_provider = None
         self._settings_open = False
+        self._pin = ""
+        self._pin_required = True
         self._build()
 
     # ------------------------------------------------------------------
@@ -324,6 +329,15 @@ class MainWindow(QMainWindow):
         self._copy_buttons = []
         self._selected_address = None
         tutorial.addLayout(self._address_box)
+
+        self._tutorial_pin = QLabel("")
+        self._tutorial_pin.setAlignment(Qt.AlignCenter)
+        self._tutorial_pin.setStyleSheet(
+            "font-family: monospace; font-size: 18px; font-weight: bold;"
+            " color: #4285F4;"
+        )
+        self._tutorial_pin.setVisible(False)
+        tutorial.addWidget(self._tutorial_pin)
 
         port_row = QHBoxLayout()
         self._port_label = QLabel(self._t("host_port", "Port"))
@@ -478,6 +492,28 @@ class MainWindow(QMainWindow):
         )
         layout.addWidget(self._language_combo)
 
+        self._require_pin_check = QCheckBox(
+            self._t("settings_require_pin", "Require PIN")
+        )
+        self._require_pin_check.toggled.connect(self.requirePinChanged.emit)
+        layout.addWidget(self._require_pin_check)
+
+        pin_row = QHBoxLayout()
+        self._settings_pin_value = QLabel("------")
+        self._settings_pin_value.setStyleSheet(
+            "font-family: monospace; font-size: 20px; font-weight: bold;"
+            " color: #4285F4;"
+        )
+        pin_row.addWidget(self._settings_pin_value)
+        pin_row.addStretch(1)
+        self._new_pin_button = QPushButton(self._t("settings_new_pin", "New PIN"))
+        self._new_pin_button.setObjectName("flatButton")
+        self._new_pin_button.clicked.connect(
+            lambda: self.regeneratePinRequested.emit()
+        )
+        pin_row.addWidget(self._new_pin_button)
+        layout.addLayout(pin_row)
+
         self._settings_more_label = QLabel(self._t("settings_more", "More"))
         self._settings_more_label.setObjectName("statusTitle")
         layout.addWidget(self._settings_more_label)
@@ -507,6 +543,23 @@ class MainWindow(QMainWindow):
         code = self._language_combo.itemData(index)
         if code and code != self._language:
             self.languageChanged.emit(code)
+
+    def set_pin(self, pin, required):
+        self._pin = pin or ""
+        self._pin_required = bool(required)
+        self._require_pin_check.blockSignals(True)
+        self._require_pin_check.setChecked(self._pin_required)
+        self._require_pin_check.blockSignals(False)
+        self._refresh_pin_labels()
+
+    def _refresh_pin_labels(self):
+        self._settings_pin_value.setText(self._pin or "------")
+        if self._pin_required and self._pin:
+            self._tutorial_pin.setText(f'{self._t("settings_pin", "PIN")}: {self._pin}')
+            self._tutorial_pin.setVisible(True)
+        else:
+            self._tutorial_pin.setText("")
+            self._tutorial_pin.setVisible(False)
 
     def _layout_settings(self):
         width = self._container.width()
@@ -589,6 +642,9 @@ class MainWindow(QMainWindow):
         self._settings_title.setText(self._t("settings_title", "Settings"))
         self._settings_lang_label.setText(self._t("settings_language", "Language"))
         self._settings_more_label.setText(self._t("settings_more", "More"))
+        self._require_pin_check.setText(self._t("settings_require_pin", "Require PIN"))
+        self._new_pin_button.setText(self._t("settings_new_pin", "New PIN"))
+        self._refresh_pin_labels()
         self._settings_button.setToolTip(self._t("settings_title", "Settings"))
         self._about_button.setText(self._t("header_about", "About"))
         self._uninstall_button.setText(self._t("header_uninstall", "Uninstall Driver"))

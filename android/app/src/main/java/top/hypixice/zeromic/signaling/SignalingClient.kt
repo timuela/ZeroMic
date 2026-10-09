@@ -25,6 +25,7 @@ class SignalingClient(
         fun onPeerReady()
         fun onToggleMute()
         fun onPresence(desktopOnline: Boolean)
+        fun onAuthFailed()
     }
 
     private var socket: Socket? = null
@@ -79,13 +80,16 @@ class SignalingClient(
                 listener.onPresence(obj.optBoolean("desktop", false))
             }
         }
+        s.on("auth_failed") { _ ->
+            listener.onAuthFailed()
+        }
 
         socket = s
         s.connect()
     }
 
-    fun join() {
-        socket?.emit("join", JSONObject().put("role", "mobile"))
+    fun join(pin: String) {
+        socket?.emit("join", JSONObject().put("role", "mobile").put("pin", pin))
     }
 
     fun sendOffer(sdp: String) {

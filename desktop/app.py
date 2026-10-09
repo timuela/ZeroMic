@@ -218,6 +218,8 @@ class DesktopApp:
         self._window.uninstallDriverRequested.connect(self._on_uninstall_driver)
         self._window.aboutRequested.connect(self._on_about)
         self._window.languageChanged.connect(self._on_language_changed)
+        self._window.requirePinChanged.connect(self._on_require_pin_changed)
+        self._window.regeneratePinRequested.connect(self._on_regenerate_pin)
         self._window.addressSelected.connect(self._on_address_selected)
         self._window.portChangeRequested.connect(self._on_port_requested)
 
@@ -265,6 +267,7 @@ class DesktopApp:
     def start(self):
         self._window.show()
         self._apply_saved_port()
+        self._apply_pin_settings()
         # Enumerating LAN addresses and audio devices shells out to PowerShell
         # and PortAudio and can take seconds. Run on the UI thread right after
         # show(), it blocks the window - and while the window cannot answer the
@@ -418,6 +421,40 @@ class DesktopApp:
         self._settings.setValue("language", code)
         self._settings.sync()
         self._refresh_tray_texts()
+
+    def _apply_pin_settings(self):
+        saved = self._settings.value("require_pin")
+        required = True if saved is None else str(saved).lower() in ("1", "true")
+        setter = getattr(self._server, "set_require_pin", None)
+        if setter is not None:
+            try:
+                setter(required)
+            except Exception:
+                log.debug("could not set the PIN requirement", exc_info=True)
+        self._window.set_pin(getattr(self._server, "pin", "") or "", required)
+
+    def _on_require_pin_changed(self, enabled):
+        setter = getattr(self._server, "set_require_pin", None)
+        if setter is not None:
+            try:
+                setter(enabled)
+            except Exception:
+                log.debug("could not change the PIN requirement", exc_info=True)
+        self._settings.setValue("require_pin", bool(enabled))
+        self._settings.sync()
+        self._window.set_pin(getattr(self._server, "pin", "") or "", bool(enabled))
+
+    def _on_regenerate_pin(self):
+        regenerate = getattr(self._server, "regenerate_pin", None)
+        if regenerate is not None:
+            try:
+                regenerate()
+            except Exception:
+                log.debug("could not regenerate the PIN", exc_info=True)
+        self._window.set_pin(
+            getattr(self._server, "pin", "") or "",
+            getattr(self._server, "require_pin", True),
+        )
 
     def _on_error(self, message):
         QMessageBox.warning(self._window, "ZeroMic", message)

@@ -241,6 +241,18 @@ fun MicScreen(viewModel: MicViewModel, onLanguageChanged: () -> Unit = {}) {
                 placeholder = { Text(stringResource(R.string.address_hint)) }
             )
 
+            Spacer(Modifier.height(12.dp))
+
+            OutlinedTextField(
+                value = viewModel.pin,
+                onValueChange = viewModel::onPinChange,
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                enabled = !active,
+                label = { Text(stringResource(R.string.pin_label)) },
+                placeholder = { Text(stringResource(R.string.pin_hint)) }
+            )
+
             Spacer(Modifier.height(24.dp))
 
             Column(Modifier.fillMaxWidth()) {

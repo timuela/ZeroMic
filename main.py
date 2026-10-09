@@ -3,6 +3,7 @@ import sys
 import socket
 import threading
 import time
+import secrets
 import OpenSSL       # 确保 PyInstaller 能检测到 adhoc SSL 的依赖
 import cryptography
 
@@ -18,7 +19,7 @@ else:
     base_path = os.path.dirname(os.path.abspath(__file__))
 
 # 常量
-VERSION = "v0.1.7"
+VERSION = "v0.1.8"
 DEFAULT_PORT = 5000
 
 # 单实例检测
@@ -93,6 +94,15 @@ SERVER_PORT = get_available_port(DEFAULT_PORT)
 
 # 当前实际使用的端口，可通过桌面客户端更改
 server_port = SERVER_PORT
+
+# 每次启动服务随机生成的一次性 PIN；手机端需在 join 时提供才能连接
+server_pin = ""
+require_pin = True
+
+
+def _generate_pin():
+    return f"{secrets.randbelow(1_000_000):06d}"
+
 
 # 平台检测
 platform = get_platform()
@@ -234,6 +244,12 @@ def _broadcast_presence():
 @socketio.on('join')
 def on_join(data):
     role = data.get('role', 'unknown') if isinstance(data, dict) else 'unknown'
+    if role == 'mobile' and require_pin:
+        supplied = str(data.get('pin', '')).strip() if isinstance(data, dict) else ''
+        if supplied != server_pin:
+            print(f"[mobile] PIN 校验失败 (sid={request.sid})")
+            emit('auth_failed', {'reason': 'pin'})
+            return
     clients[request.sid] = role
     print(f"[{role}] 已连接到信令服务器 (sid={request.sid})")
     emit('ready', {'role': role}, broadcast=True, include_self=False)
@@ -295,7 +311,7 @@ def start_server(port):
 
     :raises OSError: 端口被占用等问题由调用方决定如何提示。
     """
-    global _server, server_port
+    global _server, server_port, server_pin
     from werkzeug.serving import make_server
 
     with _server_lock:
@@ -304,6 +320,7 @@ def start_server(port):
             '0.0.0.0', port, app, ssl_context='adhoc', threaded=True
         )
         server_port = port
+        server_pin = _generate_pin()
 
     threading.Thread(target=_server.serve_forever, daemon=True).start()
 
@@ -321,6 +338,25 @@ class ServerControl:
     @property
     def port(self):
         return server_port
+
+    @property
+    def pin(self):
+        return server_pin
+
+    @property
+    def require_pin(self):
+        return require_pin
+
+    def set_require_pin(self, enabled):
+        global require_pin, server_pin
+        require_pin = bool(enabled)
+        if require_pin and not server_pin:
+            server_pin = _generate_pin()
+
+    def regenerate_pin(self):
+        global server_pin
+        server_pin = _generate_pin()
+        return server_pin
 
     def ips(self):
         return get_lan_ips()

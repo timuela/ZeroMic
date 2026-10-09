@@ -78,5 +78,13 @@
   "about_body": "基于局域网的 WebRTC —— 无需云端、无需账号。",
   "lang_en": "English",
   "lang_zh": "中文",
-  "lang_vi": "Tiếng Việt"
+  "lang_vi": "Tiếng Việt",
+
+  "settings_require_pin": "需要 PIN",
+  "settings_new_pin": "新 PIN",
+  "settings_pin": "PIN",
+  "m_pin_label": "PIN",
+  "m_pin_title": "需要 PIN 验证",
+  "m_pin_required": "请输入电脑上显示的 PIN",
+  "m_pin_wrong": "PIN 错误，请检查电脑上显示的验证码。"
 }

@@ -25,6 +25,10 @@ class Prefs(context: Context) {
         get() = prefs.getString(KEY_LANGUAGE, "en") ?: "en"
         set(value) = prefs.edit().putString(KEY_LANGUAGE, value).apply()
 
+    var pin: String
+        get() = prefs.getString(KEY_PIN, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_PIN, value).apply()
+
     fun profiles(): List<HostProfile> {
         val raw = prefs.getString(KEY_PROFILES, null) ?: return emptyList()
         return try {
@@ -65,6 +69,7 @@ class Prefs(context: Context) {
         private const val KEY_ADDRESS = "address"
         private const val KEY_GAIN = "gain"
         private const val KEY_LANGUAGE = "language"
+        private const val KEY_PIN = "pin"
         private const val KEY_PROFILES = "host_profiles"
     }
 }
