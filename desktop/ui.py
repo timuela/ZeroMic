@@ -17,6 +17,7 @@ from PySide6.QtGui import (
     QColor,
     QIntValidator,
     QPainter,
+    QPen,
     QPixmap,
     QRegularExpressionValidator,
 )
@@ -130,6 +131,27 @@ class _Scrim(QWidget):
 
     def mousePressEvent(self, event):
         self.clicked.emit()
+
+
+class _LanguageCombo(QComboBox):
+    """Combo box whose drop-down chevron is painted by hand.
+
+    Styling QComboBox::drop-down in the stylesheet suppresses the native arrow,
+    so draw our own rather than ship an image asset.
+    """
+
+    def paintEvent(self, event):
+        super().paintEvent(event)
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing, True)
+        pen = QPen(QColor("#9a9a9a"))
+        pen.setWidthF(1.6)
+        pen.setCapStyle(Qt.RoundCap)
+        painter.setPen(pen)
+        cx = self.width() - 16.0
+        cy = self.height() / 2.0
+        painter.drawLine(QPointF(cx - 4.5, cy - 2.0), QPointF(cx, cy + 2.5))
+        painter.drawLine(QPointF(cx, cy + 2.5), QPointF(cx + 4.5, cy - 2.0))
 
 
 class MicButton(QWidget):
@@ -309,9 +331,6 @@ class MainWindow(QMainWindow):
         status_row.addWidget(self._dot)
         self._status_text = QLabel("")
         self._status_text.setObjectName("statusText")
-        # Grows with the status wording otherwise, which also pushed the
-        # window wider than its default size.
-        self._status_text.setWordWrap(True)
         status_row.addWidget(self._status_text)
         status_row.addStretch(1)
         status_box.addLayout(status_row)
@@ -478,7 +497,7 @@ class MainWindow(QMainWindow):
         self._settings_lang_label.setObjectName("statusTitle")
         layout.addWidget(self._settings_lang_label)
 
-        self._language_combo = QComboBox()
+        self._language_combo = _LanguageCombo()
         for code, key, fallback in (
             ("en_us", "lang_en", "English"),
             ("zh_cn", "lang_zh", "\u4e2d\u6587"),

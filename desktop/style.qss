@@ -98,8 +98,15 @@ QComboBox {
     background-color: #1e1e1e;
     border: 1px solid #333333;
     border-radius: 10px;
-    padding: 8px 12px;
+    padding: 8px 28px 8px 12px;
     color: #e6e6e6;
+}
+
+/* The default drop-down button paints its own square box over the rounded
+   border. Drop the box but leave the native arrow where the style puts it. */
+QComboBox::drop-down {
+    border: none;
+    background: transparent;
 }
 
 QComboBox:hover {
