@@ -63,3 +63,25 @@ APIs (it exists because `QApplication.applicationIcon()` shipped once). Add
 - The **Linux** host needs `libportaudio2` installed to play audio
   (`sudo apt install libportaudio2`); it is a system library and is not bundled.
 - `dist/` and `.venv/` are gitignored, as is `android/local.properties`.
+
+## Troubleshooting
+
+**`Timeout of 120000 reached waiting for exclusive access to file: ...gradle-8.11.1-bin.zip`**
+
+A Gradle process was killed mid-download (Ctrl+C, or closing the terminal) and
+left a lock behind. Clear it:
+
+```powershell
+Get-CimInstance Win32_Process -Filter "Name='java.exe'" |
+  Where-Object { $_.CommandLine -like '*gradle*' } |
+  ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
+Remove-Item "$env:USERPROFILE\.gradle\wrapper\dists\gradle-8.11.1-bin\*\*.lck" -Force
+```
+
+**Gradle's first run is very slow**
+
+`services.gradle.org` is much slower than `dl.google.com` on some
+connections, and the first build pulls the 137 MB distribution plus the
+Android dependencies. It only happens once. To watch progress, check the size
+of `%USERPROFILE%\.gradle\wrapper\dists\gradle-8.11.1-bin\*\gradle-8.11.1-bin.zip`.
+If it stalls at 0 bytes, the lock above is the usual cause.
