@@ -112,11 +112,17 @@
         .speaker-button.muted { background-color: var(--color-muted) !important; color: #4a0005 !important; }
         .volume-ring.muted { background-color: var(--color-muted); transform: scale(1) !important; opacity: 0.1; }
 
+        /* The menu otherwise takes the field's width and clips long device
+           names; several of them share long prefixes, so a clipped one is
+           impossible to tell from another. Size it to the longest item, never
+           narrower than the field, and still capped to the viewport. */
         mdui-select::part(menu) {
             max-height: 256px !important; 
             overflow-y: auto !important;
             max-width: calc(100vw - 40px) !important;
             overflow-x: hidden !important;
+            width: max-content !important;
+            min-width: 100% !important;
         }
 
         
@@ -564,6 +570,8 @@ async function loadAudioDevices() {
                 const item = document.createElement('mdui-menu-item');
                 item.value = device.deviceId;
                 item.innerText = device.label || `Unknown audio device (${device.deviceId.slice(0,5)})`; 
+                // Fallback if the menu is capped by the viewport width.
+                item.title = item.innerText;
                 outputSelect.appendChild(item);
 
                 // Smart-match CABLE Input
