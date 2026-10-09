@@ -93,5 +93,27 @@
   "m_pin_label": "PIN",
   "m_pin_title": "需要 PIN 验证",
   "m_pin_required": "请输入电脑上显示的 PIN",
-  "m_pin_wrong": "PIN 错误，请检查电脑上显示的验证码。"
+  "m_pin_wrong": "PIN 错误，请检查电脑上显示的验证码。",
+
+  "driver_ready": "虚拟音频设备已就绪。",
+  "driver_created": "虚拟音频设备已创建。",
+  "driver_create_failed": "创建虚拟音频设备失败：\n{detail}",
+  "driver_missing": "未找到 ZeroMic 虚拟音频设备。",
+  "driver_removed": "虚拟音频设备已移除。",
+  "driver_remove_failed": "移除虚拟音频设备失败：\n{detail}",
+  "driver_installed_ok": "安装成功。",
+  "driver_install_failed": "安装失败：{detail}",
+  "driver_uninstalled_ok": "卸载成功。",
+  "driver_uninstaller_missing": "未找到卸载程序，可能已被手动卸载。",
+  "driver_uninstall_status": "卸载程序返回了异常状态码：{detail}",
+  "driver_uninstall_failed": "卸载失败：{detail}",
+  "driver_manual_install": "请手动安装 BlackHole：\nbrew install blackhole-2ch\n或从 https://github.com/ExistentialAudio/BlackHole 下载。",
+  "driver_manual_uninstall": "请手动卸载 BlackHole：\nbrew uninstall blackhole-2ch",
+  "driver_post_install": "虚拟音频设备已就绪。\n\n在游戏或会议软件中，请将麦克风设备设置为：\n“{device}”\n\n如果设备未出现，请重新打开该软件。",
+  "pactl_missing": "pactl 不可用，请确认已安装 PulseAudio / PipeWire。",
+  "pactl_timeout": "pactl 执行超时。",
+  "error_connect": "无法连接到服务器：{detail}",
+  "error_audio_device": "无法打开音频输出设备：{detail}",
+  "error_signalling": "信令连接失败：{detail}",
+  "error_webrtc": "WebRTC 协商失败：{detail}"
 }

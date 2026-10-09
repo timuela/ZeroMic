@@ -4,7 +4,7 @@ import sys
 
 from PyInstaller.utils.hooks import collect_all, collect_data_files
 
-# 从环境变量获取架构，默认为空（让系统自动决定）
+# Target architecture from the environment; empty lets the system decide
 target_arch = os.environ.get('TARGET_ARCH', None)
 
 base_datas = [
@@ -20,7 +20,7 @@ if sys.platform == 'win32':
 
 datas, binaries, hiddenimports = [], [], []
 
-# 原生扩展与随包资源（FFmpeg / PortAudio / SRTP）
+# Native extensions and the data they need at runtime (FFmpeg / PortAudio / SRTP)
 for package in ('aiortc', 'av', 'sounddevice', 'pylibsrtp', 'aioice', 'google_crc32c', 'pyee'):
     package_datas, package_binaries, package_hidden = collect_all(package)
     datas += package_datas
@@ -40,7 +40,7 @@ a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=binaries,
-    datas=base_datas + datas,  # 包含前端资源、样式和驱动
+    datas=base_datas + datas,  # front-end assets, styles and the driver
     hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},
@@ -66,17 +66,17 @@ if os.environ.get('ZEROMIC_ONEFILE') == '1':
         debug=False,
         bootloader_ignore_signals=False,
         strip=False,
-        upx=False,  # Qt / FFmpeg 动态库与 UPX 压缩不兼容
+        upx=False,  # Qt / FFmpeg DLLs do not survive UPX compression
         upx_exclude=[],
         runtime_tmpdir=None,
         console=False,
         disable_windowed_traceback=False,
         argv_emulation=False,
-        target_arch=target_arch,  # 注入架构变量
+        target_arch=target_arch,  # target architecture
         codesign_identity=None,
         entitlements_file=None,
         icon='icon.ico',
-        uac_admin=False,  # Windows 自动申请管理员权限
+        uac_admin=False,  # Windows asks for administrator rights on launch
     )
 else:
     exe = EXE(
@@ -88,15 +88,15 @@ else:
         debug=False,
         bootloader_ignore_signals=False,
         strip=False,
-        upx=False,  # Qt / FFmpeg 动态库与 UPX 压缩不兼容
+        upx=False,  # Qt / FFmpeg DLLs do not survive UPX compression
         console=False,
         disable_windowed_traceback=False,
         argv_emulation=False,
-        target_arch=target_arch,  # 注入架构变量
+        target_arch=target_arch,  # target architecture
         codesign_identity=None,
         entitlements_file=None,
         icon='icon.ico',
-        uac_admin=False,  # Windows 自动申请管理员权限
+        uac_admin=False,  # Windows asks for administrator rights on launch
     )
 
     coll = COLLECT(

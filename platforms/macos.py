@@ -13,7 +13,7 @@ class MacOSPlatform(BasePlatform):
         return 'blackhole'
 
     def list_lan_ips(self) -> list[str]:
-        """列出所有 IPv4 地址，包含 VPN / Tailscale 等虚拟网卡。"""
+        """Every IPv4 address, including virtual adapters such as VPN / Tailscale."""
         ips: list[str] = []
         try:
             output = subprocess.check_output(['ifconfig'], text=True, timeout=5)
@@ -48,19 +48,29 @@ class MacOSPlatform(BasePlatform):
 
     def install_driver(self) -> tuple[bool, str]:
         if self.is_driver_installed():
-            return True, 'BlackHole 已安装'
+            return True, self._msg(
+                "driver_ready", 'The virtual audio device is already set up.'
+            )
 
-        return False, (
-            '请手动安装 BlackHole:\n'
+        return False, self._msg(
+            "driver_manual_install",
+            'Install BlackHole manually:\n'
             'brew install blackhole-2ch\n'
-            '或访问 https://github.com/ExistentialAudio/BlackHole 下载安装包。'
+            'or download it from https://github.com/ExistentialAudio/BlackHole',
         )
 
     def uninstall_driver(self) -> tuple[bool, str]:
-        return False, '请手动卸载 BlackHole:\nbrew uninstall blackhole-2ch'
+        return False, self._msg(
+            "driver_manual_uninstall",
+            'Remove BlackHole manually:\nbrew uninstall blackhole-2ch',
+        )
 
     def get_post_install_warning(self) -> str:
-        return (
-            '请将游戏/会议软件的麦克风设备设置为 "BlackHole 2ch"。\n'
-            '如果设备未出现，请尝试重启应用或电脑。'
+        return self._msg(
+            "driver_post_install",
+            'The virtual audio device is ready.\n\n'
+            'In games or meeting apps, set the microphone device to:\n'
+            '"{device}"\n\n'
+            'If it does not appear, reopen the app you were using.',
+            device='BlackHole 2ch',
         )

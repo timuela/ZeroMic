@@ -12,4 +12,4 @@ def get_platform():
         from .macos import MacOSPlatform
         return MacOSPlatform()
     else:
-        raise RuntimeError(f"不支持的操作系统: {sys.platform}")
+        raise RuntimeError(f"Unsupported operating system: {sys.platform}")

@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: '手动指定版本号 (如 v0.1.0)'
+        description: 'Version to build (e.g. v0.1.0)'
         required: false
         type: string
 
@@ -23,30 +23,30 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # === Windows 系列 ===
+          # === Windows ===
           - os: windows-latest
-            python_arch: x64       # 环境必须是 x64 才能成功安装
-            target_arch: x86_64    # 打包目标 x64
+            python_arch: x64       # the environment must be x64 for installs to work
+            target_arch: x86_64    # package for x64
             target_name: windows-x64
 
           - os: windows-latest
-            python_arch: x64       # 欺骗环境：用 x64 的 Python
-            target_arch: arm64     # 交叉编译：强制打包成 arm64
+            python_arch: x64       # x64 Python that is told to cross-build
+            target_arch: arm64     # force an arm64 package
             target_name: windows-arm64
 
-          # === Linux 系列 ===
+          # === Linux ===
           - os: ubuntu-latest
             python_arch: x64
             target_arch: x86_64
             target_name: linux-x64
 
-          # === macOS 系列 (Apple Silicon) ===
+          # === macOS (Apple Silicon) ===
           - os: macos-14
             python_arch: arm64
             target_arch: arm64
             target_name: macos-arm64
 
-          # === macOS 系列 (官方最新免费 Intel 节点) ===
+          # === macOS (Intel) ===
           - os: macos-15-intel
             python_arch: x64
             target_arch: x86_64
@@ -60,7 +60,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          architecture: ${{ matrix.python_arch }} # 严格根据矩阵配置环境
+          architecture: ${{ matrix.python_arch }} # follow the matrix exactly
 
       - name: Install Dependencies (Linux)
         if: runner.os == 'Linux'
@@ -112,7 +112,7 @@ jobs:
       - name: Build with PyInstaller (Windows)
         if: runner.os == 'Windows'
         env:
-          TARGET_ARCH: ${{ matrix.target_arch }} # 关键：传给 main.spec
+          TARGET_ARCH: ${{ matrix.target_arch }} # read by main.spec
         run: |
           pyinstaller --noconfirm --workpath build\onedir --distpath dist main.spec
           if ($LASTEXITCODE -ne 0) { throw "one-dir build failed" }
@@ -172,11 +172,11 @@ jobs:
           }
         shell: pwsh
 
-      # === Linux/macOS 独立构建 (利用 Bash 和 Spec 变量) ===
+      # === Linux/macOS build (bash, spec variables) ===
       - name: Build with PyInstaller (Unix)
         if: runner.os != 'Windows'
         env:
-          TARGET_ARCH: ${{ matrix.target_arch }} # 关键：传给 main.spec
+          TARGET_ARCH: ${{ matrix.target_arch }} # read by main.spec
         run: |
           pyinstaller --noconfirm main.spec
           tar -czf "dist/ZeroMic-Host-${{ steps.version.outputs.version }}-${{ matrix.target_name }}.tar.gz" -C dist ZeroMic
@@ -227,11 +227,18 @@ jobs:
 
       # Signed with the checked-in test key, so every build shares one
       # signature and a new APK can upgrade an existing install.
+      # versionCode is derived from the version the same way dev\build-apk.ps1
+      # does it (0.1.28 -> 128). Using github.run_number here made a released
+      # APK look older than a locally built one, so Android refused to install
+      # it over the top ("Can't downgrade apps", error -25).
       - name: Build client APK
         run: |
+          version="${{ steps.version.outputs.version }}"
+          code=$(echo "$version" | awk -F. '{printf "%d", $1 * 10000 + $2 * 100 + $3}')
+          echo "versionName=$version versionCode=$code"
           gradle assembleRelease --no-daemon --stacktrace \
-            -PversionName=${{ steps.version.outputs.version }} \
-            -PversionCode=${{ github.run_number }}
+            -PversionName="$version" \
+            -PversionCode="$code"
 
       - name: Rename APK
         run: |

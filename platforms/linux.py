@@ -16,7 +16,7 @@ class LinuxPlatform(BasePlatform):
         return self.SINK_NAME
 
     def list_lan_ips(self) -> list[str]:
-        """列出所有 IPv4 地址，包含 VPN / Tailscale 等虚拟网卡。"""
+        """Every IPv4 address, including virtual adapters such as VPN / Tailscale."""
         ips: list[str] = []
         try:
             output = subprocess.check_output(
@@ -51,7 +51,7 @@ class LinuxPlatform(BasePlatform):
             return False
 
     def _run_pactl(self, *args) -> tuple[int, str, str]:
-        """运行 pactl 命令，返回 (returncode, stdout, stderr)"""
+        """Run pactl, returning (returncode, stdout, stderr)."""
         try:
             proc = subprocess.run(
                 ['pactl', *args],
@@ -59,12 +59,15 @@ class LinuxPlatform(BasePlatform):
             )
             return proc.returncode, proc.stdout, proc.stderr
         except FileNotFoundError:
-            return -1, '', 'pactl 命令不可用，请确认 PulseAudio/PipeWire 已安装'
+            return -1, '', self._msg(
+                "pactl_missing",
+                'pactl is not available; check that PulseAudio/PipeWire is installed.',
+            )
         except subprocess.TimeoutExpired:
-            return -1, '', 'pactl 命令超时'
+            return -1, '', self._msg("pactl_timeout", 'pactl timed out.')
 
     def _get_module_id(self) -> int | None:
-        """获取已加载的 zeromic null-sink 模块 ID。"""
+        """Id of the loaded zeromic null-sink module, if there is one."""
         code, stdout, _ = self._run_pactl('list', 'modules', 'short')
         if code != 0:
             return None
@@ -80,7 +83,9 @@ class LinuxPlatform(BasePlatform):
 
     def install_driver(self) -> tuple[bool, str]:
         if self.is_driver_installed():
-            return True, '虚拟音频设备已存在'
+            return True, self._msg(
+                "driver_ready", 'The virtual audio device is already set up.'
+            )
 
         code, stdout, stderr = self._run_pactl(
             'load-module', 'module-null-sink',
@@ -88,23 +93,35 @@ class LinuxPlatform(BasePlatform):
             f'sink_properties=device.description={self.SINK_DESCRIPTION}'
         )
         if code == 0:
-            return True, '虚拟音频设备创建成功！'
-        return False, f'创建虚拟音频设备失败:\n{stderr}'
+            return True, self._msg("driver_created", 'Virtual audio device created.')
+        return False, self._msg(
+            "driver_create_failed",
+            'Could not create the virtual audio device:\n{detail}',
+            detail=stderr,
+        )
 
     def uninstall_driver(self) -> tuple[bool, str]:
         module_id = self._get_module_id()
         if module_id is None:
-            return False, '未找到 ZeroMic 虚拟音频设备'
+            return False, self._msg(
+                "driver_missing", 'No ZeroMic virtual audio device found.'
+            )
 
         code, stdout, stderr = self._run_pactl('unload-module', str(module_id))
         if code == 0:
-            return True, '虚拟音频设备已移除。'
-        return False, f'移除失败:\n{stderr}'
+            return True, self._msg("driver_removed", 'Virtual audio device removed.')
+        return False, self._msg(
+            "driver_remove_failed",
+            'Could not remove the virtual audio device:\n{detail}',
+            detail=stderr,
+        )
 
     def get_post_install_warning(self) -> str:
-        return (
-            '虚拟音频设备已创建。\n\n'
-            '在游戏或会议软件中，请将麦克风设备设置为：\n'
-            f'"{self.SINK_DESCRIPTION} Monitor"\n\n'
-            '如果设备未出现，请尝试重新打开目标软件。'
+        return self._msg(
+            "driver_post_install",
+            'The virtual audio device is ready.\n\n'
+            'In games or meeting apps, set the microphone device to:\n'
+            '"{device}"\n\n'
+            'If it does not appear, reopen the app you were using.',
+            device=f'{self.SINK_DESCRIPTION} Monitor',
         )

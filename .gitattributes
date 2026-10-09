@@ -1,11 +1,11 @@
-# 排除前端文件的语言统计
+# Keep vendored front-end files out of the language statistics
 webui/** linguist-vendored
 
-# 排除配置文件
+# Not source code
 *.yml linguist-detectable=false
 *.yaml linguist-detectable=false
 
-# 重点标记 Python
+# Mark the entry point as Python
 main.py linguist-language=Python
 
 # Gradle wrapper

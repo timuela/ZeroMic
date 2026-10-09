@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# ZeroMic 构建脚本 (Linux / macOS)
-# 使用方法: chmod +x build.sh && ./build.sh
+# ZeroMic build script (Linux / macOS)
+# Usage: chmod +x build.sh && ./build.sh
 
 set -e
 
-echo "=== 清理旧构建 ==="
+echo "=== Cleaning previous build ==="
 rm -rf build dist
 
-echo "=== 开始打包 ==="
+echo "=== Building ==="
 pyinstaller --noconfirm main.spec
 
-echo "=== 打包完成 ==="
-echo "可执行文件在: $(pwd)/dist/ZeroMic"
+echo "=== Build complete ==="
+echo "Executable: $(pwd)/dist/ZeroMic"

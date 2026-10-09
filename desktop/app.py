@@ -190,10 +190,15 @@ class DesktopApp:
         saved_language = self._settings.value("language")
         self._translator = Translator(webui_dir, saved_language or None)
         self._t = self._translator
+        # Driver install/uninstall results come back from the platform layer, so
+        # it needs the same translator to answer in the chosen language.
+        set_platform_translator = getattr(platform, "set_translator", None)
+        if set_platform_translator is not None:
+            set_platform_translator(self._t)
 
         self._runner = AsyncRunner()
         self._feedback = Feedback()
-        self._session = DesktopSession(self._feedback, platform)
+        self._session = DesktopSession(self._feedback, platform, self._t)
         self._session.set_scheduler(self._runner.schedule)
 
         self._current_device = None
@@ -514,17 +519,17 @@ class DesktopApp:
             warning = self._platform.get_post_install_warning()
             if warning:
                 QMessageBox.information(
-                    self._window, self._t("reminder_title", "配置完成"), warning
+                    self._window, self._t("reminder_title", "\u26a0\ufe0f Important: Restore Audio"), warning
                 )
         else:
             QMessageBox.warning(
-                self._window, self._t("install_title_fail", "安装失败"), message or ""
+                self._window, self._t("install_title_fail", "Installation Failed"), message or ""
             )
 
     def _on_uninstall_driver(self):
         answer = QMessageBox.question(
             self._window,
-            self._t("dialog_uninstall_title", "确定要卸载驱动吗？"),
+            self._t("dialog_uninstall_title", "Uninstall Driver?"),
             self._t("uninstall_dialog_text", ""),
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No,
@@ -545,13 +550,13 @@ class DesktopApp:
             self._feedback.driverStateChanged.emit(False)
             QMessageBox.information(
                 self._window,
-                self._t("uninstall_title_success", "卸载成功"),
+                self._t("uninstall_title_success", "Driver Completely Uninstalled"),
                 self._t("uninstall_desc_success", ""),
             )
             self._quit()
         else:
             QMessageBox.warning(
-                self._window, self._t("uninstall_title_fail", "卸载失败"), message or ""
+                self._window, self._t("uninstall_title_fail", "Uninstallation Failed"), message or ""
             )
 
     def _on_about(self):

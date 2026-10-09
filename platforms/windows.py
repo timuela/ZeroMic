@@ -16,7 +16,7 @@ class WindowsPlatform(BasePlatform):
         return 'cable input'
 
     def list_lan_ips(self) -> list[str]:
-        """列出所有 IPv4 地址，包含 VPN / Tailscale 等虚拟网卡。"""
+        """Every IPv4 address, including virtual adapters such as VPN / Tailscale."""
         ps = (
             "Get-NetIPAddress -AddressFamily IPv4 | "
             "Where-Object { $_.IPAddress -notlike '127.*' -and "
@@ -118,7 +118,9 @@ public class PolicyConfigClient {{
 
     def install_driver(self) -> tuple[bool, str]:
         if self.is_driver_installed():
-            return True, '虚拟声卡已安装'
+            return True, self._msg(
+                "driver_ready", 'The virtual audio device is already set up.'
+            )
 
         try:
             import sys
@@ -128,7 +130,8 @@ public class PolicyConfigClient {{
             else:
                 base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-            # 在安装前记录当前默认音频输出设备
+            # Remember the default output device before installing, so it can
+            # be restored afterwards.
             old_device = self._get_default_audio_endpoint()
 
             temp_dir = tempfile.mkdtemp()
@@ -145,19 +148,24 @@ public class PolicyConfigClient {{
                 cmd = ['powershell', '-WindowStyle', 'Hidden', '-Command', f'Start-Process -FilePath "{setup_exe}" -ArgumentList "-i -h" -Verb RunAs -Wait -WindowStyle Hidden']
                 subprocess.run(cmd, check=True, creationflags=creation_flags)
             shutil.rmtree(temp_dir, ignore_errors=True)
-            # 安装完成后恢复之前的默认音频输出设备
+            # Put back the default output device the installer changed.
             if old_device:
                 self._set_default_audio_endpoint(old_device)
 
-            return True, '安装成功！'
+            return True, self._msg("driver_installed_ok", 'Installed.')
         except Exception as e:
-            return False, f'安装异常: {str(e)}'
+            return False, self._msg(
+                "driver_install_failed", 'Install failed: {detail}', detail=e
+            )
 
     def uninstall_driver(self) -> tuple[bool, str]:
         setup_path = r'C:\Program Files\VB\CABLE\VBCABLE_Setup_x64.exe'
 
         if not os.path.exists(setup_path):
-            return False, '未找到卸载程序，可能已被手动卸载。'
+            return False, self._msg(
+                "driver_uninstaller_missing",
+                'Uninstaller not found; it may already have been removed.',
+            )
 
         try:
             creation_flags = subprocess.CREATE_NO_WINDOW
@@ -170,11 +178,17 @@ public class PolicyConfigClient {{
                 return_code = process.returncode
 
             if return_code in [0, 1, 2]:
-                return True, '卸载成功！'
+                return True, self._msg("driver_uninstalled_ok", 'Uninstalled.')
             else:
-                return False, f'卸载程序返回了异常状态码: {return_code}'
+                return False, self._msg(
+                    "driver_uninstall_status",
+                    'The uninstaller returned an unexpected status: {detail}',
+                    detail=return_code,
+                )
         except Exception as e:
-            return False, f'卸载时发生异常: {str(e)}'
+            return False, self._msg(
+                "driver_uninstall_failed", 'Uninstall failed: {detail}', detail=e
+            )
 
     def get_post_install_warning(self) -> str:
         return ""

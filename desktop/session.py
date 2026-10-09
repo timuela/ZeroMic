@@ -1,5 +1,7 @@
 import logging
 
+from platforms.base import translate
+
 from desktop.audio import AudioOutput
 from desktop.webrtc import WebRtcReceiver
 
@@ -13,9 +15,11 @@ class DesktopSession:
     thread. Commands arriving from Qt are scheduled onto it by the app.
     """
 
-    def __init__(self, feedback, platform):
+    def __init__(self, feedback, platform, t=None):
         self._feedback = feedback
         self._platform = platform
+        # Reports errors in the language the desktop app is using.
+        self._t = t
         self._audio = AudioOutput()
         self._webrtc = WebRtcReceiver(
             on_pcm=self._audio.push,
@@ -48,7 +52,14 @@ class DesktopSession:
             await self._signaling.connect(url)
         except Exception as exc:
             self._active = False
-            self._feedback.report_error(f"无法连接到服务器: {exc}")
+            self._feedback.report_error(
+                translate(
+                    self._t,
+                    "error_connect",
+                    "Could not connect to the server: {detail}",
+                    detail=exc,
+                )
+            )
 
     async def stop(self):
         self._active = False
@@ -67,7 +78,14 @@ class DesktopSession:
         try:
             self._audio.start(device_index)
         except Exception as exc:
-            self._feedback.report_error(f"无法打开音频输出设备: {exc}")
+            self._feedback.report_error(
+                translate(
+                    self._t,
+                    "error_audio_device",
+                    "Could not open the audio output device: {detail}",
+                    detail=exc,
+                )
+            )
 
     # ------------------------------------------------------------------
     # commands from the UI / tray
@@ -111,7 +129,14 @@ class DesktopSession:
         if not self._active:
             return
         self._feedback.set_link_state("disconnected")
-        self._feedback.report_error(f"信令连接失败: {message}")
+        self._feedback.report_error(
+            translate(
+                self._t,
+                "error_signalling",
+                "Signalling connection failed: {detail}",
+                detail=message,
+            )
+        )
 
     async def on_presence(self, mobile_connected):
         if not self._active:
@@ -130,7 +155,14 @@ class DesktopSession:
         try:
             answer = await self._webrtc.handle_offer(sdp)
         except Exception as exc:
-            self._feedback.report_error(f"WebRTC 协商失败: {exc}")
+            self._feedback.report_error(
+                translate(
+                    self._t,
+                    "error_webrtc",
+                    "WebRTC negotiation failed: {detail}",
+                    detail=exc,
+                )
+            )
             return
         await self._signaling.emit_answer(answer)
 

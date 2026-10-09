@@ -1,18 +1,41 @@
+def translate(t, key, fallback, **params):
+    """Look a message up in the current language, then fill in {placeholders}."""
+    text = fallback
+    if t is not None:
+        try:
+            text = t(key, fallback)
+        except Exception:
+            text = fallback
+    for name, value in params.items():
+        text = text.replace("{" + name + "}", str(value))
+    return text
+
+
 class BasePlatform:
-    """平台抽象基类，定义各平台必须实现的接口。"""
+    """Abstract base class for a platform, defining what each one must provide."""
+
+    def __init__(self):
+        self._t = None
+
+    def set_translator(self, translate_func):
+        """The desktop app installs one so driver messages follow the UI language."""
+        self._t = translate_func
+
+    def _msg(self, key, fallback, **params):
+        return translate(self._t, key, fallback, **params)
 
     @property
     def driver_display_name(self) -> str:
-        """前端 UI 中显示的虚拟设备名称。"""
+        """Name of the virtual device shown in the front-end UI."""
         raise NotImplementedError
 
     @property
     def driver_match_keyword(self) -> str:
-        """在前端 enumerateDevices 中匹配设备的关键词（小写）。"""
+        """Lower-case keyword used to match the device in enumerateDevices."""
         raise NotImplementedError
 
     def list_lan_ips(self) -> list[str]:
-        """返回本机所有可用的局域网 IPv4 地址（用于生成多个访问地址）。"""
+        """Every usable LAN IPv4 address on this host (for the access URLs)."""
         return []
 
     def is_admin(self) -> bool:
@@ -22,13 +45,13 @@ class BasePlatform:
         raise NotImplementedError
 
     def install_driver(self) -> tuple[bool, str]:
-        """返回 (成功, 消息)"""
+        """Returns (succeeded, message)."""
         raise NotImplementedError
 
     def uninstall_driver(self) -> tuple[bool, str]:
-        """返回 (成功, 消息)"""
+        """Returns (succeeded, message)."""
         raise NotImplementedError
 
     def get_post_install_warning(self) -> str:
-        """驱动安装后的提醒文案。"""
+        """Reminder shown after the driver is installed."""
         return ""

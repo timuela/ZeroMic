@@ -91,5 +91,27 @@
   "m_pin_label": "PIN",
   "m_pin_title": "PIN Required",
   "m_pin_required": "Enter the PIN shown on the PC",
-  "m_pin_wrong": "Wrong PIN. Check the code shown on the PC."
+  "m_pin_wrong": "Wrong PIN. Check the code shown on the PC.",
+
+  "driver_ready": "The virtual audio device is already set up.",
+  "driver_created": "Virtual audio device created.",
+  "driver_create_failed": "Could not create the virtual audio device:\n{detail}",
+  "driver_missing": "No ZeroMic virtual audio device found.",
+  "driver_removed": "Virtual audio device removed.",
+  "driver_remove_failed": "Could not remove the virtual audio device:\n{detail}",
+  "driver_installed_ok": "Installed.",
+  "driver_install_failed": "Install failed: {detail}",
+  "driver_uninstalled_ok": "Uninstalled.",
+  "driver_uninstaller_missing": "Uninstaller not found; it may already have been removed.",
+  "driver_uninstall_status": "The uninstaller returned an unexpected status: {detail}",
+  "driver_uninstall_failed": "Uninstall failed: {detail}",
+  "driver_manual_install": "Install BlackHole manually:\nbrew install blackhole-2ch\nor download it from https://github.com/ExistentialAudio/BlackHole",
+  "driver_manual_uninstall": "Remove BlackHole manually:\nbrew uninstall blackhole-2ch",
+  "driver_post_install": "The virtual audio device is ready.\n\nIn games or meeting apps, set the microphone device to:\n\"{device}\"\n\nIf it does not appear, reopen the app you were using.",
+  "pactl_missing": "pactl is not available; check that PulseAudio/PipeWire is installed.",
+  "pactl_timeout": "pactl timed out.",
+  "error_connect": "Could not connect to the server: {detail}",
+  "error_audio_device": "Could not open the audio output device: {detail}",
+  "error_signalling": "Signalling connection failed: {detail}",
+  "error_webrtc": "WebRTC negotiation failed: {detail}"
 }

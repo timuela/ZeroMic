@@ -9,10 +9,6 @@
     <img src="https://img.shields.io/badge/License-GPLv3-green?style=flat-square" alt="License">
     <img src="https://img.shields.io/badge/Built%20with-Python%20%7C%20WebRTC-yellow?style=flat-square" alt="Tech">
   </p>
-
-  <p>
-    <b>English</b> | <a href="./README_zh.md">简体中文</a>
-  </p>
 </div>
 
 ---

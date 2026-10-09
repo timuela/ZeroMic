@@ -10,17 +10,17 @@ from flask_socketio import SocketIO, emit
 
 from platforms import get_platform
 
-# 兼容 PyInstaller 的资源路径定位机制
+# Resource path resolution that also works under PyInstaller
 if getattr(sys, 'frozen', False):
     base_path = sys._MEIPASS
 else:
     base_path = os.path.dirname(os.path.abspath(__file__))
 
-# 常量
-VERSION = "v0.1.27"
+# Constants
+VERSION = "v0.1.28"
 DEFAULT_PORT = 5000
 
-# 单实例检测
+# Single-instance detection
 MUTEX_NAME = r'Local\ZeroMicSingleInstance'
 LOCK_FILENAME = 'zeromic.lock'
 ERROR_ALREADY_EXISTS = 183
@@ -28,10 +28,10 @@ _instance_lock = None
 
 
 def acquire_instance_lock():
-    """尝试成为唯一运行实例。
+    """Try to become the only running instance.
 
-    返回 True 表示可以继续启动，False 表示已经有一个实例在运行。
-    检测本身出错时不会阻止启动。
+    Returns True when startup may continue, False when another instance is
+    already running. A failure in the check itself never blocks startup.
     """
     global _instance_lock
     try:
@@ -67,7 +67,7 @@ def acquire_instance_lock():
 
 
 def notify_already_running():
-    message = 'ZeroMic 已在运行中，请勿重复启动。\n\nZeroMic is already running.'
+    message = 'ZeroMic is already running.'
     if sys.platform == 'win32':
         try:
             import ctypes
@@ -90,13 +90,14 @@ def get_available_port(start_port, max_port=5100):
 
 SERVER_PORT = get_available_port(DEFAULT_PORT)
 
-# 当前实际使用的端口，可通过桌面客户端更改
+# The port actually in use; the desktop client can change it
 server_port = SERVER_PORT
 
-# 每次启动服务随机生成的一次性 PIN；手机端需在 join 时提供才能连接
+# One-off PIN regenerated when the server starts; a phone must supply it to join
 server_pin = ""
-# 用户在设置里指定的 PIN：服务启动/重启（换端口）时优先使用它，否则会被新
-# 生成的随机 PIN 覆盖——服务现在跑在后台线程上，和界面应用 PIN 存在竞态。
+# The PIN the user chose in settings. The server starts on a worker thread while
+# the UI applies this, so without it a freshly generated random PIN could
+# overwrite the chosen one.
 custom_pin = ""
 require_pin = True
 
@@ -105,11 +106,11 @@ def _generate_pin():
     return f"{secrets.randbelow(1_000_000):06d}"
 
 
-# 平台检测
+# Platform detection
 platform = get_platform()
 
 # ==========================================
-# 1. Flask & SocketIO 初始化
+# 1. Flask & SocketIO setup
 # ==========================================
 WEBUI_DIR = os.path.join(base_path, 'webui')
 app = Flask(__name__, static_folder=WEBUI_DIR, static_url_path='')
@@ -119,7 +120,7 @@ socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
 
 def get_lan_ip():
-    """获取本机在局域网内的 IPv4 地址"""
+    """The host's IPv4 address on the local network."""
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
         s.connect(('10.255.255.255', 1))
@@ -132,7 +133,7 @@ def get_lan_ip():
 
 
 def get_lan_ips():
-    """本机所有可访问的 IPv4 地址，主地址排在最前。"""
+    """Every reachable IPv4 address, with the primary one first."""
     try:
         ips = [ip for ip in platform.list_lan_ips() if ip]
     except Exception:
@@ -144,7 +145,7 @@ def get_lan_ips():
 
 
 # ==========================================
-# 2. 路由配置
+# 2. Routes
 # ==========================================
 @app.route('/')
 def index():
@@ -225,7 +226,7 @@ def api_sync_mute():
 
 
 # ==========================================
-# 3. WebRTC 信令服务器 (Socket.IO)
+# 3. WebRTC signalling server (Socket.IO)
 # ==========================================
 clients = {}  # sid -> role
 
@@ -248,11 +249,11 @@ def on_join(data):
     if role == 'mobile' and require_pin:
         supplied = str(data.get('pin', '')).strip() if isinstance(data, dict) else ''
         if supplied != server_pin:
-            print(f"[mobile] PIN 校验失败 (sid={request.sid})")
+            print(f"[mobile] PIN check failed (sid={request.sid})")
             emit('auth_failed', {'reason': 'pin'})
             return
     clients[request.sid] = role
-    print(f"[{role}] 已连接到信令服务器 (sid={request.sid})")
+    print(f"[{role}] connected to the signalling server (sid={request.sid})")
     emit('ready', {'role': role}, broadcast=True, include_self=False)
     _broadcast_presence()
 
@@ -261,7 +262,7 @@ def on_join(data):
 def on_disconnect():
     role = clients.pop(request.sid, None)
     if role is not None:
-        print(f"[{role}] 已断开连接 (sid={request.sid})")
+        print(f"[{role}] disconnected (sid={request.sid})")
         _broadcast_presence()
 
 
@@ -286,7 +287,7 @@ def on_toggle_mute():
 
 
 # ==========================================
-# 4. 启动入口
+# 4. Entry point
 # ==========================================
 _server = None
 _server_lock = threading.Lock()
@@ -308,9 +309,10 @@ def stop_server():
 
 
 def start_server(port):
-    """启动 HTTPS 信令服务，先停掉正在运行的实例。
+    """Start the HTTPS signalling server, stopping any running instance first.
 
-    :raises OSError: 端口被占用等问题由调用方决定如何提示。
+    :raises OSError: the caller decides how to report problems such as the port
+        already being in use.
     """
     global _server, server_port, server_pin
     # Imported here rather than at module load, so the TLS/ad-hoc stack is not
@@ -330,9 +332,9 @@ def start_server(port):
     threading.Thread(target=_server.serve_forever, daemon=True).start()
 
     print("\n=========================================")
-    print("ZeroMic Host 已启动！")
+    print("ZeroMic Host started.")
     for address in get_lan_ips():
-        print(f"手机请访问: https://{address}:{port}")
+        print(f"Open this on your phone: https://{address}:{port}")
     print("=========================================\n")
     return True
 
@@ -341,11 +343,11 @@ def _start_server_quietly(port):
     try:
         start_server(port)
     except Exception as exc:
-        print(f"[ZeroMic] 无法启动服务: {exc}")
+        print(f"[ZeroMic] Could not start the server: {exc}")
 
 
 class ServerControl:
-    """暴露给桌面客户端的最小服务器控制接口。"""
+    """Minimal server control surface exposed to the desktop client."""
 
     @property
     def port(self):

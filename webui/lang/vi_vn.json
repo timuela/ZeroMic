@@ -91,5 +91,27 @@
   "m_pin_label": "PIN",
   "m_pin_title": "Cần mã PIN",
   "m_pin_required": "Nhập mã PIN hiển thị trên PC",
-  "m_pin_wrong": "Sai mã PIN. Kiểm tra mã hiển thị trên PC."
+  "m_pin_wrong": "Sai mã PIN. Kiểm tra mã hiển thị trên PC.",
+
+  "driver_ready": "Thiết bị âm thanh ảo đã sẵn sàng.",
+  "driver_created": "Đã tạo thiết bị âm thanh ảo.",
+  "driver_create_failed": "Không thể tạo thiết bị âm thanh ảo:\n{detail}",
+  "driver_missing": "Không tìm thấy thiết bị âm thanh ảo ZeroMic.",
+  "driver_removed": "Đã gỡ thiết bị âm thanh ảo.",
+  "driver_remove_failed": "Không thể gỡ thiết bị âm thanh ảo:\n{detail}",
+  "driver_installed_ok": "Đã cài đặt.",
+  "driver_install_failed": "Cài đặt thất bại: {detail}",
+  "driver_uninstalled_ok": "Đã gỡ cài đặt.",
+  "driver_uninstaller_missing": "Không tìm thấy trình gỡ cài đặt; có thể nó đã bị gỡ trước đó.",
+  "driver_uninstall_status": "Trình gỡ cài đặt trả về mã trạng thái bất thường: {detail}",
+  "driver_uninstall_failed": "Gỡ cài đặt thất bại: {detail}",
+  "driver_manual_install": "Cài đặt BlackHole thủ công:\nbrew install blackhole-2ch\nhoặc tải tại https://github.com/ExistentialAudio/BlackHole",
+  "driver_manual_uninstall": "Gỡ BlackHole thủ công:\nbrew uninstall blackhole-2ch",
+  "driver_post_install": "Thiết bị âm thanh ảo đã sẵn sàng.\n\nTrong game hoặc ứng dụng họp, hãy đặt thiết bị micrô thành:\n\"{device}\"\n\nNếu thiết bị không xuất hiện, hãy mở lại ứng dụng bạn đang dùng.",
+  "pactl_missing": "pactl không khả dụng; hãy kiểm tra PulseAudio / PipeWire đã được cài đặt.",
+  "pactl_timeout": "pactl quá thời gian chờ.",
+  "error_connect": "Không thể kết nối tới máy chủ: {detail}",
+  "error_audio_device": "Không thể mở thiết bị đầu ra âm thanh: {detail}",
+  "error_signalling": "Kết nối tín hiệu thất bại: {detail}",
+  "error_webrtc": "Thương lượng WebRTC thất bại: {detail}"
 }
