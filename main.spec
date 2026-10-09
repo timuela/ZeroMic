@@ -50,19 +50,20 @@ a = Analysis(
 )
 pyz = PYZ(a.pure)
 
+# One-dir, not one-file. Windows asks the shell for the icon before the app has
+# painted anything, and a one-file build re-unpacks the whole payload into %TEMP%
+# on every launch; one-dir starts straight from disk and lets the installer ship
+# a real folder. The release zips this directory for the portable download.
 exe = EXE(
     pyz,
     a.scripts,
-    a.binaries,
-    a.datas,
     [],
-    name='ZeroMic',  # 先生成固定名称，后续由 Actions 改名
+    exclude_binaries=True,
+    name='ZeroMic',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=False,  # Qt / FFmpeg 动态库与 UPX 压缩不兼容
-    upx_exclude=[],
-    runtime_tmpdir=None,
     console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
@@ -71,4 +72,14 @@ exe = EXE(
     entitlements_file=None,
     icon='icon.ico',
     uac_admin=False,  # Windows 自动申请管理员权限
+)
+
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.datas,
+    strip=False,
+    upx=False,
+    upx_exclude=[],
+    name='ZeroMic',
 )

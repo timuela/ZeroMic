@@ -113,7 +113,7 @@ jobs:
           TARGET_ARCH: ${{ matrix.target_arch }} # 关键：传给 main.spec
         run: |
           pyinstaller --noconfirm main.spec
-          Move-Item -Path "dist\ZeroMic.exe" -Destination "dist\ZeroMic-Host-Portable-${{ steps.version.outputs.version }}-${{ matrix.target_name }}.exe" -Force
+          Compress-Archive -Path "dist\ZeroMic\*" -DestinationPath "dist\ZeroMic-Portable-${{ steps.version.outputs.version }}-${{ matrix.target_name }}.zip" -Force
         shell: pwsh
 
       # The Windows runner images ship Inno Setup 6. Only x64 gets an installer;
@@ -126,7 +126,7 @@ jobs:
             choco install innosetup -y --no-progress
             $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
           }
-          & $iscc "/DAppVersion=${{ steps.version.outputs.version }}" "/DSourceExe=dist\ZeroMic-Host-Portable-${{ steps.version.outputs.version }}-${{ matrix.target_name }}.exe" installer\zeromic.iss
+          & $iscc "/DAppVersion=${{ steps.version.outputs.version }}" "/DDistDir=dist\ZeroMic" installer\zeromic.iss
           if ($LASTEXITCODE -ne 0) { throw "ISCC failed with exit code $LASTEXITCODE" }
         shell: pwsh
 
@@ -137,7 +137,7 @@ jobs:
           TARGET_ARCH: ${{ matrix.target_arch }} # 关键：传给 main.spec
         run: |
           pyinstaller --noconfirm main.spec
-          mv dist/ZeroMic "dist/ZeroMic-Host-${{ steps.version.outputs.version }}-${{ matrix.target_name }}"
+          tar -czf "dist/ZeroMic-Host-${{ steps.version.outputs.version }}-${{ matrix.target_name }}.tar.gz" -C dist ZeroMic
         shell: bash
 
       - name: Upload Host build
@@ -145,6 +145,7 @@ jobs:
         with:
           name: ZeroMic-Host-${{ matrix.target_name }}
           path: |
+            dist/ZeroMic-Portable-*
             dist/ZeroMic-Host-*
             dist/ZeroMic-Setup-*
           retention-days: 5

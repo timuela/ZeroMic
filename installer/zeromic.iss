@@ -4,13 +4,13 @@
 ; keep its zeromic-host.ini next to the exe the way the portable build does.
 ;
 ; Build with:  dev\build-installer.ps1
-; or directly: ISCC.exe /DAppVersion=0.1.21 /DSourceExe=..\dist\ZeroMic.exe zeromic.iss
+; or directly: ISCC.exe /DAppVersion=0.1.23 /DDistDir=..\dist\ZeroMic zeromic.iss
 
 #ifndef AppVersion
   #define AppVersion "0.0.0"
 #endif
-#ifndef SourceExe
-  #define SourceExe "..\dist\ZeroMic.exe"
+#ifndef DistDir
+  #define DistDir "..\dist\ZeroMic"
 #endif
 #ifndef OutputDir
   #define OutputDir "..\dist"
@@ -51,7 +51,8 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Name: "startup"; Description: "Start {#AppName} when Windows starts"; Flags: checkedonce
 
 [Files]
-Source: "{#SourceExe}"; DestDir: "{app}"; DestName: "{#AppExeName}"; Flags: ignoreversion
+; The one-dir build: the exe plus its _internal payload, installed as a folder.
+Source: "{#DistDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 ; The AppUserModelID is what lets the shell resolve the taskbar identity and

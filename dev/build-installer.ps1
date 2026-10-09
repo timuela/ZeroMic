@@ -10,10 +10,11 @@ $repo = Split-Path -Parent $PSScriptRoot
 
 $version = (Select-String -Path (Join-Path $repo 'main.py') -Pattern 'VERSION = "v([\d.]+)"').Matches[0].Groups[1].Value
 
-# Prefer the exe the release names; fall back to a plain build.
-$exe = Join-Path $repo "dist\ZeroMic-Host-Portable-$version-windows-x64.exe"
-if (-not (Test-Path $exe)) { $exe = Join-Path $repo 'dist\ZeroMic.exe' }
-if (-not (Test-Path $exe)) { throw "No built host exe in dist\. Run dev\build-host.ps1 first." }
+# The one-dir build the host script leaves in dist\ZeroMic.
+$dist = Join-Path $repo 'dist\ZeroMic'
+if (-not (Test-Path (Join-Path $dist 'ZeroMic.exe'))) {
+    throw "No built host folder in dist\ZeroMic. Run dev\build-host.ps1 first."
+}
 
 $iscc = (Get-Command iscc.exe -ErrorAction SilentlyContinue).Source
 if (-not $iscc) {
@@ -30,11 +31,11 @@ if (-not $iscc) {
 if (-not $iscc) { throw "Inno Setup not found. Install it from https://jrsoftware.org/isdl.php" }
 
 Write-Host "Building ZeroMic installer $version ..."
-Write-Host "  exe: $exe"
+Write-Host "  payload: $dist"
 Write-Host "  iscc: $iscc"
 
 $iss = Join-Path $repo 'installer\zeromic.iss'
-& $iscc "/DAppVersion=$version" "/DSourceExe=$exe" $iss
+& $iscc "/DAppVersion=$version" "/DDistDir=$dist" $iss
 if ($LASTEXITCODE -ne 0) { throw "ISCC failed with exit code $LASTEXITCODE" }
 
 $out = Join-Path $repo "dist\ZeroMic-Setup-$version.exe"
