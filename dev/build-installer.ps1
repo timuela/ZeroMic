@@ -18,6 +18,8 @@ if (-not (Test-Path $exe)) { throw "No built host exe in dist\. Run dev\build-ho
 $iscc = (Get-Command iscc.exe -ErrorAction SilentlyContinue).Source
 if (-not $iscc) {
     foreach ($candidate in @(
+        "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe",
+        "$env:LOCALAPPDATA\Programs\Inno Setup 7\ISCC.exe",
         "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
         "$env:ProgramFiles\Inno Setup 6\ISCC.exe",
         "${env:ProgramFiles(x86)}\Inno Setup 7\ISCC.exe"
