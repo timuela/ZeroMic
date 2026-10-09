@@ -15,6 +15,7 @@ from PySide6.QtCore import (
 )
 from PySide6.QtGui import (
     QColor,
+    QFontMetrics,
     QIntValidator,
     QPainter,
     QPen,
@@ -152,6 +153,45 @@ class _LanguageCombo(QComboBox):
         cy = self.height() / 2.0
         painter.drawLine(QPointF(cx - 4.5, cy - 2.0), QPointF(cx, cy + 2.5))
         painter.drawLine(QPointF(cx, cy + 2.5), QPointF(cx + 4.5, cy - 2.0))
+
+
+class _DeviceCombo(QComboBox):
+    """Combo box whose drop-down is wide enough for the longest device name.
+
+    The box itself stays narrow (see setMinimumContentsLength) so a long name
+    cannot force the window wider, but the list it opens has to show the names
+    in full: several of them share long prefixes, and a clipped one is
+    impossible to tell from another. Only the pop-up is resized, so the combo's
+    own size hint - and the window - are unaffected.
+    """
+
+    def showPopup(self):
+        super().showPopup()
+
+        widest = 0
+        metrics = QFontMetrics(self.view().font())
+        for row in range(self.count()):
+            widest = max(widest, metrics.horizontalAdvance(self.itemText(row)))
+        if widest == 0:
+            return
+
+        popup = self.view().window()
+        if popup is self:
+            return
+
+        # Room for the item padding, the scroll bar and the pop-up frame.
+        wanted = widest + 56
+        screen = QApplication.primaryScreen()
+        geometry = screen.availableGeometry() if screen is not None else None
+        if geometry is not None:
+            wanted = min(wanted, geometry.width() - 40)
+        if popup.width() >= wanted:
+            return
+
+        popup.resize(wanted, popup.height())
+        # Keep it on screen now that it is wider than the combo.
+        if geometry is not None and popup.x() + wanted > geometry.right():
+            popup.move(max(geometry.left(), geometry.right() - wanted), popup.y())
 
 
 class MicButton(QWidget):
@@ -392,7 +432,7 @@ class MainWindow(QMainWindow):
         control.setContentsMargins(0, 0, 0, 0)
         control.setSpacing(16)
 
-        self._device_combo = QComboBox()
+        self._device_combo = _DeviceCombo()
         # Without this the combo demands room for the longest device name it
         # is given - "CABLE Input (VB-Audio Virtual Cable)" alone forced the
         # whole window wider than its default size.
@@ -710,6 +750,8 @@ class MainWindow(QMainWindow):
     def _on_device_index_changed(self, index):
         if index < 0:
             return
+        # The closed box elides a long name; keep the whole one reachable.
+        self._device_combo.setToolTip(self._device_combo.itemText(index))
         device = self._device_combo.itemData(index)
         if device is not None:
             self.deviceChanged.emit(int(device))
@@ -774,6 +816,7 @@ class MainWindow(QMainWindow):
             if position >= 0:
                 self._device_combo.setCurrentIndex(position)
         self._device_combo.blockSignals(False)
+        self._device_combo.setToolTip(self._device_combo.currentText())
 
     def set_gain(self, gain):
         self._gain_slider.blockSignals(True)

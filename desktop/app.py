@@ -308,7 +308,7 @@ class DesktopApp:
             devices = []
         current = find_output_index(self._platform.driver_match_keyword, devices)
         if current is None:
-            current = default_output_index()
+            current = default_output_index(devices)
         self._feedback.devicesReady.emit(devices, current)
 
     def _apply_addresses(self, port, addresses):
