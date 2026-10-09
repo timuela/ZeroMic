@@ -207,8 +207,21 @@ jobs:
       - name: Prepare Release Files
         run: |
           mkdir -p release-files
-          find artifacts -type f -exec cp {} release-files/ \;
+          # Only the built binaries belong in a release; the smoke log and any
+          # other diagnostics live as workflow artifacts instead.
+          find artifacts -type f -name 'ZeroMic-*' -exec cp {} release-files/ \;
           ls -la release-files
+
+      - name: Drop stray release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ github.event.inputs.version || github.ref_name }}"
+          gh release view "$TAG" --json assets -q '.assets[].name' 2>/dev/null \
+            | grep -v '^ZeroMic-' \
+            | while read -r name; do
+                [ -n "$name" ] && gh release delete-asset "$TAG" "$name" --yes || true
+              done
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
