@@ -40,6 +40,9 @@ class MicViewModel(application: Application) : AndroidViewModel(application) {
     var profiles by mutableStateOf(prefs.profiles())
         private set
 
+    var language by mutableStateOf(prefs.language)
+        private set
+
     private val _state = MutableStateFlow(MicState(gain = prefs.gain))
     val state: StateFlow<MicState> = _state.asStateFlow()
 
@@ -94,6 +97,11 @@ class MicViewModel(application: Application) : AndroidViewModel(application) {
         gain = value
         prefs.gain = value
         service?.setGainFromUi(value)
+    }
+
+    fun selectLanguage(code: String) {
+        language = code
+        prefs.language = code
     }
 
     fun connect() {

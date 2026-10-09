@@ -18,6 +18,7 @@ import androidx.core.content.ContextCompat
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import top.hypixice.zeromic.data.LocaleHelper
 import top.hypixice.zeromic.signaling.SignalingClient
 import top.hypixice.zeromic.webrtc.WebRtcClient
 
@@ -54,6 +55,10 @@ class MicService : Service(), SignalingClient.Listener, WebRtcClient.Listener {
     }
 
     override fun onBind(intent: Intent?): IBinder = binder
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(LocaleHelper.wrap(newBase))
+    }
 
     override fun onCreate() {
         super.onCreate()

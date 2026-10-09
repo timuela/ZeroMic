@@ -66,5 +66,15 @@
   "host_apply": "Apply",
   "host_port_failed": "Could not use that port",
   "host_copy": "Copy",
-  "host_copied": "Copied"
+  "host_copied": "Copied",
+
+  "settings_title": "Settings",
+  "settings_language": "Language",
+  "settings_more": "More",
+  "settings_version": "Version",
+  "settings_close": "Close",
+  "about_body": "WebRTC over LAN - no cloud, no account.",
+  "lang_en": "English",
+  "lang_zh": "中文",
+  "lang_vi": "Tiếng Việt"
 }

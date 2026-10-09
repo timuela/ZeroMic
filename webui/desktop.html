@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN" class="mdui-theme-dark">
+<html lang="en" class="mdui-theme-dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -118,6 +118,28 @@
             max-width: calc(100vw - 40px) !important;
             overflow-x: hidden !important;
         }
+
+        
+        .settings-panel {
+            width: 300px; max-width: 85vw; height: 100%; padding: 20px;
+            box-sizing: border-box; display: flex; flex-direction: column; gap: 22px;
+        }
+        .settings-header {
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: 18px; font-weight: bold; color: rgba(255,255,255,0.9);
+        }
+        .settings-group { display: flex; flex-direction: column; }
+        .settings-label {
+            font-size: 12px; opacity: 0.55; margin-bottom: 8px;
+            text-transform: uppercase; letter-spacing: 0.6px;
+        }
+        .settings-actions { display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
+        .settings-actions mdui-button { justify-content: flex-start; }
+        #settings-language-select { width: 100%; }
+        .settings-footer {
+            margin-top: auto; font-size: 12px; opacity: 0.5;
+            display: flex; justify-content: space-between;
+        }
     </style>
 </head>
 <body>
@@ -137,11 +159,7 @@
             <span id="app-version" style="font-size: 10px; margin-left: 8px; opacity: 0.5; font-family: monospace;">&mdash;</span>
         </div>
 <div class="header-actions">
-            <mdui-button-icon id="btn-lang" title="Switch Language" onclick="toggleLanguage()">
-                <span id="lang-switch-text" style="font-size: 14px; font-weight: bold;">EN</span>
-            </mdui-button-icon>
-            <mdui-button-icon id="btn-about" icon="info_outline" style="color: #888;" title="关于软件"></mdui-button-icon>
-            <mdui-button-icon id="btn-uninstall" icon="delete_outline" style="color: #888; display: none;" title="卸载驱动"></mdui-button-icon>
+            <mdui-button-icon id="btn-settings" icon="menu" title="Settings"></mdui-button-icon>
         </div>
     </div>
 <div id="mic-prompt" style="background-color: rgba(var(--mdui-color-primary), 0.1); padding: 12px 16px; border-bottom: 1px solid rgba(var(--mdui-color-primary), 0.2);">
@@ -249,14 +267,51 @@
             </mdui-button>
         </div>
     </div>
-    <mdui-button slot="action" variant="text" onclick="document.getElementById('dialog-about').open = false">关闭</mdui-button>
+    <mdui-button slot="action" variant="text" onclick="document.getElementById('dialog-about').open = false" data-i18n="dialog_close">关闭</mdui-button>
 </mdui-dialog>
+
+<mdui-navigation-drawer id="settings-drawer" placement="right">
+    <div class="settings-panel">
+        <div class="settings-header">
+            <span data-i18n="settings_title">Settings</span>
+            <mdui-button-icon id="btn-settings-close" icon="close"></mdui-button-icon>
+        </div>
+
+        <div class="settings-group">
+            <div class="settings-label" data-i18n="settings_language">Language</div>
+            <mdui-select id="settings-language-select" value="en_us">
+                <mdui-menu-item value="en_us"><span data-i18n="lang_en">English</span></mdui-menu-item>
+                <mdui-menu-item value="zh_cn"><span data-i18n="lang_zh">中文</span></mdui-menu-item>
+                <mdui-menu-item value="vi_vn"><span data-i18n="lang_vi">Tiếng Việt</span></mdui-menu-item>
+            </mdui-select>
+        </div>
+
+        <div class="settings-group">
+            <div class="settings-label" data-i18n="settings_more">More</div>
+            <div class="settings-actions">
+                <mdui-button variant="text" id="btn-about">
+                    <mdui-icon slot="icon" name="info_outline"></mdui-icon>
+                    <span data-i18n="header_about">About</span>
+                </mdui-button>
+                <mdui-button variant="text" id="btn-uninstall" style="display: none; color: #ff5252;">
+                    <mdui-icon slot="icon" name="delete_outline"></mdui-icon>
+                    <span data-i18n="header_uninstall">Uninstall Driver</span>
+                </mdui-button>
+            </div>
+        </div>
+
+        <div class="settings-footer">
+            <span data-i18n="settings_version">Version</span>
+            <span id="settings-version-text">&mdash;</span>
+        </div>
+    </div>
+</mdui-navigation-drawer>
 
 <script>
     mdui.setColorScheme('#4285F4');
     let i18nData = {};
-    // 自动检测系统语言，截取前两位判断，默认回退到英文
-    let currentLang = navigator.language.toLowerCase().startsWith('zh') ? 'zh_cn' : 'en_us';
+    // 默认英文，记住用户上一次的选择
+    let currentLang = (() => { try { return localStorage.getItem('zeromic_lang') || 'en_us'; } catch (e) { return 'en_us'; } })();
     // UI 元素
     const btnAbout = document.getElementById('btn-about');
     const dialogAbout = document.getElementById('dialog-about');
@@ -313,8 +368,8 @@
             }
         });
         
-        const langIcon = document.getElementById('lang-switch-text');
-        if(langIcon) langIcon.innerText = currentLang === 'zh_cn' ? 'EN' : '中';
+        const langSelect = document.getElementById('settings-language-select');
+        if (langSelect && langSelect.value !== currentLang) langSelect.value = currentLang;
     }
 
     // 核心加载逻辑：从服务器异步拉取 JSON
@@ -343,11 +398,18 @@
         }
     }
 
-    // 切换语言按钮绑定的事件
-    function toggleLanguage() {
-        const nextLang = currentLang === 'zh_cn' ? 'en_us' : 'zh_cn';
-        loadLanguage(nextLang);
+    // 切换到指定语言并记住选择
+    function setLanguage(lang) {
+        if (!lang || lang === currentLang) return;
+        try { localStorage.setItem('zeromic_lang', lang); } catch (e) {}
+        loadLanguage(lang);
     }
+
+    // 设置侧边栏
+    const settingsDrawer = document.getElementById('settings-drawer');
+    document.getElementById('btn-settings').addEventListener('click', () => { settingsDrawer.open = true; });
+    document.getElementById('btn-settings-close').addEventListener('click', () => { settingsDrawer.open = false; });
+    document.getElementById('settings-language-select').addEventListener('change', (e) => setLanguage(e.target.value));
 
 
     // 局域网直连，清空 STUN 配置实现秒连
@@ -472,6 +534,8 @@ async function syncAppInfo() {
             if (data.version) {
                 appVersionLabel.innerText = data.version;
                 aboutVersionText.innerText = `Version ${data.version}`;
+                const settingsVersion = document.getElementById('settings-version-text');
+                if (settingsVersion) settingsVersion.innerText = `v${data.version}`;
             }
         } catch (e) { console.error("获取版本信息失败", e); }
     }

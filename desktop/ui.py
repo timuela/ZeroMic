@@ -2,7 +2,16 @@ import math
 import os
 import sys
 
-from PySide6.QtCore import QPointF, QSize, Qt, QTimer, Signal
+from PySide6.QtCore import (
+    QEasingCurve,
+    QPointF,
+    QPropertyAnimation,
+    QRect,
+    QSize,
+    Qt,
+    QTimer,
+    Signal,
+)
 from PySide6.QtGui import QColor, QPainter, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
@@ -38,6 +47,8 @@ BUTTON_ACTIVE_BG = QColor(0x42, 0x85, 0xF4)
 BUTTON_ACTIVE_FG = QColor(0xFF, 0xFF, 0xFF)
 BUTTON_MUTED_BG = QColor(0xFF, 0xB3, 0xAE)
 BUTTON_MUTED_FG = QColor(0x4A, 0x00, 0x05)
+
+SETTINGS_PANEL_WIDTH = 300
 
 _pixmap_cache = {}
 _tinted_cache = {}
@@ -92,6 +103,19 @@ def _normalise_level(rms):
         return 0.0
     db = 20.0 * math.log10(rms)
     return max(0.0, min(1.0, (db + 54.0) / 44.0))
+
+
+class _Scrim(QWidget):
+    """Semi-transparent overlay that closes the settings panel when clicked."""
+
+    clicked = Signal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setStyleSheet("background: rgba(0, 0, 0, 150);")
+
+    def mousePressEvent(self, event):
+        self.clicked.emit()
 
 
 class MicButton(QWidget):
@@ -193,7 +217,7 @@ class MainWindow(QMainWindow):
     installDriverRequested = Signal()
     uninstallDriverRequested = Signal()
     aboutRequested = Signal()
-    languageToggled = Signal()
+    languageChanged = Signal(str)
     installReminderAcknowledged = Signal()
     addressSelected = Signal(str)
     portChangeRequested = Signal(int)
@@ -209,6 +233,7 @@ class MainWindow(QMainWindow):
         self._muted = False
         self._active = False
         self._level_provider = None
+        self._settings_open = False
         self._build()
 
     # ------------------------------------------------------------------
@@ -235,22 +260,14 @@ class MainWindow(QMainWindow):
         header.addWidget(self._version_label)
         header.addStretch(1)
 
-        self._lang_button = QPushButton("")
-        self._lang_button.setObjectName("flatButton")
-        self._lang_button.setFixedWidth(44)
-        self._lang_button.clicked.connect(lambda: self.languageToggled.emit())
-        header.addWidget(self._lang_button)
-
-        self._about_button = QPushButton(self._t("header_about", "About"))
-        self._about_button.setObjectName("flatButton")
-        self._about_button.clicked.connect(lambda: self.aboutRequested.emit())
-        header.addWidget(self._about_button)
-
-        self._uninstall_button = QPushButton(self._t("header_uninstall", "Uninstall Driver"))
-        self._uninstall_button.setObjectName("flatButton")
-        self._uninstall_button.clicked.connect(lambda: self.uninstallDriverRequested.emit())
-        self._uninstall_button.setVisible(False)
-        header.addWidget(self._uninstall_button)
+        self._settings_button = QPushButton("\u2630")
+        self._settings_button.setObjectName("flatButton")
+        self._settings_button.setFixedWidth(44)
+        self._settings_button.setToolTip(self._t("settings_title", "Settings"))
+        self._settings_button.clicked.connect(
+            lambda: self._set_settings_open(not self._settings_open)
+        )
+        header.addWidget(self._settings_button)
 
         root.addLayout(header)
 
@@ -391,10 +408,149 @@ class MainWindow(QMainWindow):
         scroll.setFrameShape(QFrame.NoFrame)
         scroll.setStyleSheet("QScrollArea { border: none; background: #121212; }")
         scroll.setWidget(content)
-        self.setCentralWidget(scroll)
+
+        # The settings panel and its scrim are children of the container but
+        # stay out of the layout, so they sit above the scroll area as an
+        # overlay that slides in from the right edge.
+        container = QWidget()
+        container_layout = QVBoxLayout(container)
+        container_layout.setContentsMargins(0, 0, 0, 0)
+        container_layout.addWidget(scroll)
+        self._container = container
+
+        self._scrim = _Scrim(container)
+        self._scrim.clicked.connect(lambda: self._set_settings_open(False))
+        self._scrim.hide()
+
+        self._settings_panel = self._build_settings_panel(container)
+        self._settings_panel.hide()
+
+        self._settings_anim = QPropertyAnimation(self._settings_panel, b"geometry", self)
+        self._settings_anim.setDuration(220)
+        self._settings_anim.setEasingCurve(QEasingCurve.OutCubic)
+        self._settings_anim.finished.connect(self._on_settings_anim_finished)
+
+        self.setCentralWidget(container)
+        self._layout_settings()
 
         self.setMinimumSize(360, 420)
         self.set_language(self._language)
+
+    # ------------------------------------------------------------------
+    # settings sidebar
+    # ------------------------------------------------------------------
+    def _build_settings_panel(self, parent):
+        panel = QFrame(parent)
+        panel.setObjectName("settingsPanel")
+        panel.setStyleSheet(
+            "QFrame#settingsPanel { background: #1a1a1a;"
+            " border-left: 1px solid #2a2a2a; }"
+        )
+        layout = QVBoxLayout(panel)
+        layout.setContentsMargins(20, 16, 20, 20)
+        layout.setSpacing(14)
+
+        head = QHBoxLayout()
+        self._settings_title = QLabel(self._t("settings_title", "Settings"))
+        self._settings_title.setObjectName("headerTitle")
+        head.addWidget(self._settings_title)
+        head.addStretch(1)
+        close_button = QPushButton("\u2715")
+        close_button.setObjectName("flatButton")
+        close_button.setFixedWidth(40)
+        close_button.clicked.connect(lambda: self._set_settings_open(False))
+        head.addWidget(close_button)
+        layout.addLayout(head)
+
+        self._settings_lang_label = QLabel(self._t("settings_language", "Language"))
+        self._settings_lang_label.setObjectName("statusTitle")
+        layout.addWidget(self._settings_lang_label)
+
+        self._language_combo = QComboBox()
+        for code, key, fallback in (
+            ("en_us", "lang_en", "English"),
+            ("zh_cn", "lang_zh", "\u4e2d\u6587"),
+            ("vi_vn", "lang_vi", "Ti\u1ebfng Vi\u1ec7t"),
+        ):
+            self._language_combo.addItem(self._t(key, fallback), code)
+        self._language_combo.currentIndexChanged.connect(
+            self._on_language_index_changed
+        )
+        layout.addWidget(self._language_combo)
+
+        self._settings_more_label = QLabel(self._t("settings_more", "More"))
+        self._settings_more_label.setObjectName("statusTitle")
+        layout.addWidget(self._settings_more_label)
+
+        self._about_button = QPushButton(self._t("header_about", "About"))
+        self._about_button.setObjectName("flatButton")
+        self._about_button.clicked.connect(lambda: self.aboutRequested.emit())
+        layout.addWidget(self._about_button)
+
+        self._uninstall_button = QPushButton(self._t("header_uninstall", "Uninstall Driver"))
+        self._uninstall_button.setObjectName("flatButton")
+        self._uninstall_button.clicked.connect(
+            lambda: self.uninstallDriverRequested.emit()
+        )
+        self._uninstall_button.setVisible(False)
+        layout.addWidget(self._uninstall_button)
+
+        layout.addStretch(1)
+
+        self._settings_version = QLabel(self._version)
+        self._settings_version.setObjectName("versionLabel")
+        layout.addWidget(self._settings_version)
+
+        return panel
+
+    def _on_language_index_changed(self, index):
+        code = self._language_combo.itemData(index)
+        if code and code != self._language:
+            self.languageChanged.emit(code)
+
+    def _layout_settings(self):
+        width = self._container.width()
+        height = self._container.height()
+        panel_width = min(SETTINGS_PANEL_WIDTH, max(0, width))
+        x = width - panel_width if self._settings_open else width
+        self._settings_panel.setGeometry(x, 0, panel_width, height)
+        self._scrim.setGeometry(0, 0, width, height)
+
+    def _set_settings_open(self, open_):
+        if open_ == self._settings_open:
+            return
+        self._settings_open = open_
+
+        width = self._container.width()
+        height = self._container.height()
+        panel_width = min(SETTINGS_PANEL_WIDTH, max(0, width))
+        end_x = width - panel_width if open_ else width
+
+        if open_:
+            self._scrim.setGeometry(0, 0, width, height)
+            self._scrim.show()
+            self._scrim.raise_()
+            self._settings_panel.show()
+            self._settings_panel.raise_()
+        else:
+            self._scrim.raise_()
+
+        self._settings_anim.stop()
+        self._settings_anim.setStartValue(
+            QRect(self._settings_panel.x(), 0, panel_width, height)
+        )
+        self._settings_anim.setEndValue(QRect(end_x, 0, panel_width, height))
+        self._settings_anim.start()
+
+    def _on_settings_anim_finished(self):
+        if not self._settings_open:
+            self._settings_panel.hide()
+            self._scrim.hide()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        if getattr(self, "_container", None) is not None:
+            self._layout_settings()
 
     # ------------------------------------------------------------------
     # slots
@@ -422,11 +578,18 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------
     def set_language(self, language):
         self._language = language
-        # Show the language you would switch to, like the web UI does.
-        self._lang_button.setText("EN" if language == "zh_cn" else "\u4e2d")
+        position = self._language_combo.findData(language)
+        if position >= 0 and position != self._language_combo.currentIndex():
+            self._language_combo.blockSignals(True)
+            self._language_combo.setCurrentIndex(position)
+            self._language_combo.blockSignals(False)
         self.retranslate()
 
     def retranslate(self):
+        self._settings_title.setText(self._t("settings_title", "Settings"))
+        self._settings_lang_label.setText(self._t("settings_language", "Language"))
+        self._settings_more_label.setText(self._t("settings_more", "More"))
+        self._settings_button.setToolTip(self._t("settings_title", "Settings"))
         self._about_button.setText(self._t("header_about", "About"))
         self._uninstall_button.setText(self._t("header_uninstall", "Uninstall Driver"))
         self._status_title.setText(self._t("status_label", "Mobile Connection"))

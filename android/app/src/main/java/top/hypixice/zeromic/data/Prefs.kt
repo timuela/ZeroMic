@@ -21,6 +21,10 @@ class Prefs(context: Context) {
         get() = prefs.getFloat(KEY_GAIN, 1f)
         set(value) = prefs.edit().putFloat(KEY_GAIN, value).apply()
 
+    var language: String
+        get() = prefs.getString(KEY_LANGUAGE, "en") ?: "en"
+        set(value) = prefs.edit().putString(KEY_LANGUAGE, value).apply()
+
     fun profiles(): List<HostProfile> {
         val raw = prefs.getString(KEY_PROFILES, null) ?: return emptyList()
         return try {
@@ -60,6 +64,7 @@ class Prefs(context: Context) {
         private const val FILE = "zeromic_prefs"
         private const val KEY_ADDRESS = "address"
         private const val KEY_GAIN = "gain"
+        private const val KEY_LANGUAGE = "language"
         private const val KEY_PROFILES = "host_profiles"
     }
 }

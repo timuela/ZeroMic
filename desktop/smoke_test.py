@@ -95,6 +95,11 @@ print("window:")
 try:
     window = MainWindow(Translator(os.path.join(ROOT, "webui")), "v0.1.4")
     check("MainWindow constructs", True)
+    check("settings panel offers three languages",
+          window._language_combo.count() == 3, str(window._language_combo.count()))
+    window.set_language("vi_vn")
+    check("language combo follows set_language",
+          window._language_combo.currentData() == "vi_vn")
     window.set_devices([(0, "CABLE Input")], 0)
     window.set_addresses(["https://192.168.10.152:5000", "https://100.100.65.1:5000"])
     window.set_selected_address("https://100.100.65.1:5000")
@@ -149,9 +154,11 @@ try:
     controller._on_port_requested(1)
     check("bad port reverts", controller._server.port == 5050, str(controller._server.port))
     check("bad port is reported", len(dialogs) > 0, f"{len(dialogs)} dialog(s)")
-    controller._on_language_toggled()
+    controller._on_language_changed("vi_vn")
     controller._refresh_tray_texts()
     check("language and tray refresh", True)
+    check("language switched to Vietnamese", controller._translator.lang == "vi_vn",
+          controller._translator.lang)
     controller._quit()
 except Exception as exc:
     advisory.append(f"controller checks unavailable here: {type(exc).__name__}: {exc}")

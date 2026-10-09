@@ -65,16 +65,8 @@ def _apply_windows_taskbar_identity():
 
 
 def _detect_language():
-    tag = ""
-    try:
-        import locale
-
-        tag = locale.getlocale()[0] or ""
-    except Exception:
-        tag = ""
-    if not tag:
-        tag = os.environ.get("LANG") or os.environ.get("LC_ALL") or ""
-    return "zh_cn" if str(tag).lower().startswith("zh") else "en_us"
+    """Default to English; a language chosen in Settings overrides it."""
+    return "en_us"
 
 
 class Translator:
@@ -192,7 +184,8 @@ class DesktopApp:
         self._version = version
         self._server = server
         self._settings = QSettings(_settings_path(), QSettings.IniFormat)
-        self._translator = Translator(webui_dir)
+        saved_language = self._settings.value("language")
+        self._translator = Translator(webui_dir, saved_language or None)
         self._t = self._translator
 
         self._runner = AsyncRunner()
@@ -224,7 +217,7 @@ class DesktopApp:
         self._window.deviceChanged.connect(self._on_device_changed)
         self._window.uninstallDriverRequested.connect(self._on_uninstall_driver)
         self._window.aboutRequested.connect(self._on_about)
-        self._window.languageToggled.connect(self._on_language_toggled)
+        self._window.languageChanged.connect(self._on_language_changed)
         self._window.addressSelected.connect(self._on_address_selected)
         self._window.portChangeRequested.connect(self._on_port_requested)
 
@@ -419,10 +412,11 @@ class DesktopApp:
         )
         self._quit_action.setText(self._t("tray_exit", "Quit"))
 
-    def _on_language_toggled(self):
-        next_lang = "en_us" if self._translator.lang == "zh_cn" else "zh_cn"
-        self._translator.load(next_lang)
-        self._window.set_language(next_lang)
+    def _on_language_changed(self, code):
+        self._translator.load(code)
+        self._window.set_language(code)
+        self._settings.setValue("language", code)
+        self._settings.sync()
         self._refresh_tray_texts()
 
     def _on_error(self, message):

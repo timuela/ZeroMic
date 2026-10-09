@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN" class="mdui-theme-dark">
+<html lang="en" class="mdui-theme-dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -121,6 +121,26 @@
         .volume-ring.muted { background-color: var(--color-muted); transform: scale(1) !important; opacity: 0.1; }
 
         .status-text { margin-top: 32px; font-size: 16px; letter-spacing: 1px; transition: color 0.3s; font-weight: 500; }
+
+        
+        .settings-panel {
+            width: 300px; max-width: 85vw; height: 100%; padding: 20px;
+            box-sizing: border-box; display: flex; flex-direction: column; gap: 22px;
+        }
+        .settings-header {
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: 18px; font-weight: bold; color: rgba(255,255,255,0.9);
+        }
+        .settings-group { display: flex; flex-direction: column; }
+        .settings-label {
+            font-size: 12px; opacity: 0.55; margin-bottom: 8px;
+            text-transform: uppercase; letter-spacing: 0.6px;
+        }
+        #settings-language-select { width: 100%; }
+        .settings-footer {
+            margin-top: auto; font-size: 12px; opacity: 0.5;
+            display: flex; justify-content: space-between;
+        }
     </style>
 </head>
 <body>
@@ -128,9 +148,7 @@
 
 <div class="app-container">
     <div class="header" style="position: relative;">
-        <button onclick="toggleLanguage()" style="position: absolute; right: 0; top: 0; background: transparent; border: 1px solid #333; color: #aaa; padding: 2px 10px; border-radius: 12px; cursor: pointer; font-size: 12px;">
-            <span id="lang-switch-text">EN</span>
-        </button>
+        <mdui-button-icon id="btn-settings" icon="menu" style="position: absolute; right: 0; top: 0;"></mdui-button-icon>
         
         <h1><mdui-icon name="podcasts" style="font-size: 20px; margin-right: 10px; color: rgb(var(--mdui-color-primary));"></mdui-icon>ZeroMic</h1>
         <p>Client Mode | <span id="app-version">&mdash;</span> | by：Hypixice</p>
@@ -163,6 +181,29 @@
     <div class="status-text" id="status-label" style="color: var(--color-initial);" data-i18n="m_tap_connect">点击授权并连接</div>
 </div>
 
+<mdui-navigation-drawer id="settings-drawer" placement="right">
+    <div class="settings-panel">
+        <div class="settings-header">
+            <span data-i18n="settings_title">Settings</span>
+            <mdui-button-icon id="btn-settings-close" icon="close"></mdui-button-icon>
+        </div>
+
+        <div class="settings-group">
+            <div class="settings-label" data-i18n="settings_language">Language</div>
+            <mdui-select id="settings-language-select" value="en_us">
+                <mdui-menu-item value="en_us"><span data-i18n="lang_en">English</span></mdui-menu-item>
+                <mdui-menu-item value="zh_cn"><span data-i18n="lang_zh">中文</span></mdui-menu-item>
+                <mdui-menu-item value="vi_vn"><span data-i18n="lang_vi">Tiếng Việt</span></mdui-menu-item>
+            </mdui-select>
+        </div>
+
+        <div class="settings-footer">
+            <span data-i18n="settings_version">Version</span>
+            <span id="settings-version-text">&mdash;</span>
+        </div>
+    </div>
+</mdui-navigation-drawer>
+
 <script>
     mdui.setColorScheme('#4285F4'); 
 
@@ -178,8 +219,8 @@ const socket = io(window.location.origin);
 
 
     let i18nData = {};
-    // 获取手机系统语言，默认回退到英文
-    let currentLang = navigator.language.toLowerCase().startsWith('zh') ? 'zh_cn' : 'en_us';
+    // 默认英文，记住用户上一次的选择
+    let currentLang = (() => { try { return localStorage.getItem('zeromic_lang') || 'en_us'; } catch (e) { return 'en_us'; } })();
 
     // 翻译辅助函数 (供 JS 动态文字使用)
     function t(key) {
@@ -195,9 +236,8 @@ const socket = io(window.location.origin);
             }
         });
         
-        // 更新切换按钮的文字
-        const langIcon = document.getElementById('lang-switch-text');
-        if(langIcon) langIcon.innerText = currentLang === 'zh_cn' ? 'EN' : '中';
+        const langSelect = document.getElementById('settings-language-select');
+        if (langSelect && langSelect.value !== currentLang) langSelect.value = currentLang;
     }
 
     // 从服务器异步拉取 JSON (复用电脑端的 lang 文件夹)
@@ -215,11 +255,18 @@ const socket = io(window.location.origin);
         }
     }
 
-    // 切换语言
-    function toggleLanguage() {
-        const nextLang = currentLang === 'zh_cn' ? 'en_us' : 'zh_cn';
-        loadLanguage(nextLang);
+    // 切换到指定语言并记住选择
+    function setLanguage(lang) {
+        if (!lang || lang === currentLang) return;
+        try { localStorage.setItem('zeromic_lang', lang); } catch (e) {}
+        loadLanguage(lang);
     }
+
+    // 设置侧边栏
+    const settingsDrawer = document.getElementById('settings-drawer');
+    document.getElementById('btn-settings').addEventListener('click', () => { settingsDrawer.open = true; });
+    document.getElementById('btn-settings-close').addEventListener('click', () => { settingsDrawer.open = false; });
+    document.getElementById('settings-language-select').addEventListener('change', (e) => setLanguage(e.target.value));
 
     socket.on('connect', () => {
         socket.emit('join', { role: 'mobile' });
@@ -276,6 +323,8 @@ const socket = io(window.location.origin);
             const data = await response.json();
             const label = document.getElementById('app-version');
             if (label && data.version) label.innerText = data.version;
+            const settingsVersion = document.getElementById('settings-version-text');
+            if (settingsVersion && data.version) settingsVersion.innerText = `v${data.version}`;
         } catch (error) {
             console.error('获取版本信息失败:', error);
         }

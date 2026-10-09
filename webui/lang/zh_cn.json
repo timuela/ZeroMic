@@ -68,5 +68,15 @@
   "host_apply": "应用",
   "host_port_failed": "无法使用该端口",
   "host_copy": "复制",
-  "host_copied": "已复制"
+  "host_copied": "已复制",
+
+  "settings_title": "设置",
+  "settings_language": "语言",
+  "settings_more": "更多",
+  "settings_version": "版本",
+  "settings_close": "关闭",
+  "about_body": "基于局域网的 WebRTC —— 无需云端、无需账号。",
+  "lang_en": "English",
+  "lang_zh": "中文",
+  "lang_vi": "Tiếng Việt"
 }

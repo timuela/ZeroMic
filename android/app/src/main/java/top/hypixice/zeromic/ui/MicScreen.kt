@@ -65,14 +65,31 @@ import top.hypixice.zeromic.MicPhase
 import top.hypixice.zeromic.MicState
 import top.hypixice.zeromic.R
 import top.hypixice.zeromic.data.HostProfile
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.IconButton
 
 @Composable
-fun MicScreen(viewModel: MicViewModel) {
+fun MicScreen(viewModel: MicViewModel, onLanguageChanged: () -> Unit = {}) {
     val context = LocalContext.current
     val state by viewModel.state.collectAsStateWithLifecycle()
     var errorText by remember { mutableStateOf<String?>(null) }
     var addHostOpen by remember { mutableStateOf(false) }
     var pendingDelete by remember { mutableStateOf<HostProfile?>(null) }
+    var settingsOpen by remember { mutableStateOf(false) }
 
     val runtimePermissions = remember {
         buildList {
@@ -108,6 +125,7 @@ fun MicScreen(viewModel: MicViewModel) {
 
     val active = state.phase == MicPhase.STREAMING || state.phase == MicPhase.CONNECTING
 
+    Box(Modifier.fillMaxSize()) {
     Scaffold(containerColor = MaterialTheme.colorScheme.background) { padding ->
         Column(
             modifier = Modifier
@@ -139,6 +157,14 @@ fun MicScreen(viewModel: MicViewModel) {
                     fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                Spacer(Modifier.weight(1f))
+                IconButton(onClick = { settingsOpen = true }) {
+                    Icon(
+                        imageVector = Icons.Filled.Menu,
+                        contentDescription = stringResource(R.string.settings_title),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
 
             Spacer(Modifier.height(24.dp))
@@ -227,7 +253,7 @@ fun MicScreen(viewModel: MicViewModel) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = "%.1f×".format(viewModel.gain),
+                        text = stringResource(R.string.gain_value, viewModel.gain),
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -308,6 +334,18 @@ fun MicScreen(viewModel: MicViewModel) {
         }
     }
 
+    SettingsDrawer(
+        open = settingsOpen,
+        language = viewModel.language,
+        version = BuildConfig.VERSION_NAME,
+        onLanguageSelected = { code ->
+            viewModel.selectLanguage(code)
+            onLanguageChanged()
+        },
+        onClose = { settingsOpen = false },
+    )
+    }
+
     if (addHostOpen) {
         AddHostDialog(
             initialAddress = viewModel.address.trim(),
@@ -338,6 +376,145 @@ fun MicScreen(viewModel: MicViewModel) {
                 }
             }
         )
+    }
+}
+
+@Composable
+private fun BoxScope.SettingsDrawer(
+    open: Boolean,
+    language: String,
+    version: String,
+    onLanguageSelected: (String) -> Unit,
+    onClose: () -> Unit,
+) {
+    AnimatedVisibility(visible = open, enter = fadeIn(), exit = fadeOut()) {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.5f))
+                .clickable { onClose() }
+        )
+    }
+    AnimatedVisibility(
+        visible = open,
+        enter = slideInHorizontally(initialOffsetX = { it }),
+        exit = slideOutHorizontally(targetOffsetX = { it }),
+        modifier = Modifier.align(Alignment.CenterEnd),
+    ) {
+        SettingsPanel(language, version, onLanguageSelected, onClose)
+    }
+}
+
+@Composable
+private fun SettingsPanel(
+    language: String,
+    version: String,
+    onLanguageSelected: (String) -> Unit,
+    onClose: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier
+            .width(300.dp)
+            .fillMaxHeight(),
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 4.dp,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(20.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(R.string.settings_title),
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                IconButton(onClick = onClose) {
+                    Icon(
+                        imageVector = Icons.Filled.Close,
+                        contentDescription = stringResource(R.string.settings_close),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(20.dp))
+            Text(
+                text = stringResource(R.string.settings_language),
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(8.dp))
+            LanguageSelector(language, onLanguageSelected)
+
+            Spacer(Modifier.height(20.dp))
+            Text(
+                text = stringResource(R.string.settings_more),
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = stringResource(R.string.about_body),
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            Spacer(Modifier.weight(1f))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    text = stringResource(R.string.settings_version),
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = version,
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun LanguageSelector(current: String, onSelected: (String) -> Unit) {
+    val options = listOf(
+        "en" to R.string.lang_en,
+        "zh" to R.string.lang_zh,
+        "vi" to R.string.lang_vi,
+    )
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        OutlinedButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()) {
+            Text(
+                text = stringResource(
+                    options.firstOrNull { it.first == current }?.second ?: R.string.lang_en
+                )
+            )
+            Spacer(Modifier.weight(1f))
+            Icon(imageVector = Icons.Filled.ArrowDropDown, contentDescription = null)
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            options.forEach { (code, labelRes) ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(labelRes)) },
+                    onClick = {
+                        expanded = false
+                        onSelected(code)
+                    },
+                )
+            }
+        }
     }
 }
 
