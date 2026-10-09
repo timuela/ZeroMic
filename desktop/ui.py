@@ -58,10 +58,11 @@ BUTTON_MUTED_FG = QColor(0x4A, 0x00, 0x05)
 
 SETTINGS_PANEL_WIDTH = 300
 
-# Shared look for the editable settings fields (PIN, Port).
+# Shared look and width for the editable settings fields (PIN, Port).
 FIELD_STYLE = (
-    "font-family: monospace; font-size: 18px; font-weight: bold; color: #4285F4;"
+    "font-family: monospace; font-size: 16px; font-weight: bold; color: #4285F4;"
 )
+FIELD_WIDTH = 110
 
 _pixmap_cache = {}
 _tinted_cache = {}
@@ -232,7 +233,6 @@ class MainWindow(QMainWindow):
     aboutRequested = Signal()
     languageChanged = Signal(str)
     requirePinChanged = Signal(bool)
-    regeneratePinRequested = Signal()
     pinChanged = Signal(str)
     installReminderAcknowledged = Signal()
     addressSelected = Signal(str)
@@ -496,39 +496,38 @@ class MainWindow(QMainWindow):
         layout.addWidget(self._require_pin_check)
 
         pin_row = QHBoxLayout()
+        self._pin_label = QLabel(self._t("settings_pin", "PIN"))
+        pin_row.addWidget(self._pin_label)
         self._pin_edit = QLineEdit()
         self._pin_edit.setMaxLength(10)
         self._pin_edit.setValidator(
             QRegularExpressionValidator(QRegularExpression(r"[0-9]{0,10}"))
         )
-        self._pin_edit.setPlaceholderText(self._t("settings_pin", "PIN"))
+        self._pin_edit.setFixedWidth(FIELD_WIDTH)
         self._pin_edit.setStyleSheet(FIELD_STYLE)
         self._pin_edit.returnPressed.connect(self._emit_pin_changed)
-        pin_row.addWidget(self._pin_edit, 1)
+        pin_row.addWidget(self._pin_edit)
         self._pin_apply_button = QPushButton(self._t("settings_pin_apply", "Apply"))
         self._pin_apply_button.setObjectName("flatButton")
         self._pin_apply_button.clicked.connect(self._emit_pin_changed)
         pin_row.addWidget(self._pin_apply_button)
+        pin_row.addStretch(1)
         layout.addLayout(pin_row)
 
-        self._new_pin_button = QPushButton(self._t("settings_new_pin", "New PIN"))
-        self._new_pin_button.setObjectName("flatButton")
-        self._new_pin_button.clicked.connect(
-            lambda: self.regeneratePinRequested.emit()
-        )
-        layout.addWidget(self._new_pin_button)
-
         port_row = QHBoxLayout()
+        self._port_label = QLabel(self._t("host_port", "Port"))
+        port_row.addWidget(self._port_label)
         self._port_input = QLineEdit()
         self._port_input.setValidator(QIntValidator(1024, 65535, self))
-        self._port_input.setPlaceholderText(self._t("host_port", "Port"))
+        self._port_input.setFixedWidth(FIELD_WIDTH)
         self._port_input.setStyleSheet(FIELD_STYLE)
         self._port_input.returnPressed.connect(self._on_apply_port)
-        port_row.addWidget(self._port_input, 1)
+        port_row.addWidget(self._port_input)
         self._apply_port_button = QPushButton(self._t("host_apply", "Apply"))
         self._apply_port_button.setObjectName("flatButton")
         self._apply_port_button.clicked.connect(self._on_apply_port)
         port_row.addWidget(self._apply_port_button)
+        port_row.addStretch(1)
         layout.addLayout(port_row)
 
         self._settings_more_label = QLabel(self._t("settings_more", "More"))
@@ -665,16 +664,15 @@ class MainWindow(QMainWindow):
         self._settings_lang_label.setText(self._t("settings_language", "Language"))
         self._settings_more_label.setText(self._t("settings_more", "More"))
         self._require_pin_check.setText(self._t("settings_require_pin", "Require PIN"))
-        self._new_pin_button.setText(self._t("settings_new_pin", "New PIN"))
+        self._pin_label.setText(self._t("settings_pin", "PIN"))
         self._pin_apply_button.setText(self._t("settings_pin_apply", "Apply"))
-        self._pin_edit.setPlaceholderText(self._t("settings_pin", "PIN"))
         self._refresh_pin_labels()
         self._settings_button.setToolTip(self._t("settings_title", "Settings"))
         self._about_button.setText(self._t("header_about", "About"))
         self._uninstall_button.setText(self._t("header_uninstall", "Uninstall Driver"))
         self._status_title.setText(self._t("status_label", "Mobile Connection"))
         self._gain_label.setText(self._t("desktop_gain", "Volume"))
-        self._port_input.setPlaceholderText(self._t("host_port", "Port"))
+        self._port_label.setText(self._t("host_port", "Port"))
         self._apply_port_button.setText(self._t("host_apply", "Apply"))
         self._tutorial_title.setText(self._t("tutorial_title", "Waiting for Mobile"))
         self._tutorial_warn.setText(
