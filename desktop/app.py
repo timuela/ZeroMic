@@ -197,6 +197,7 @@ class DesktopApp:
         self._hint_shown = False
         self._muted = False
         self._active = False
+        self._auto_listen_pending = False
 
         self._window = MainWindow(self._t, version, self._translator.lang)
         self._window.set_level_provider(self._session.level)
@@ -269,6 +270,9 @@ class DesktopApp:
         self._window.show()
         self._apply_saved_port()
         self._apply_pin_settings()
+        # Listen from the start so the host is ready for a phone without the
+        # user having to press Connect; it waits for the output device below.
+        self._auto_listen_pending = True
         # Enumerating LAN addresses and audio devices shells out to PowerShell
         # and PortAudio and can take seconds. Run on the UI thread right after
         # show(), it blocks the window - and while the window cannot answer the
@@ -301,6 +305,9 @@ class DesktopApp:
     def _apply_devices(self, devices, current):
         self._current_device = current
         self._window.set_devices(devices, current)
+        if self._auto_listen_pending:
+            self._auto_listen_pending = False
+            self._on_connect()
 
     def _apply_saved_port(self):
         saved = self._settings.value("port")
@@ -358,13 +365,6 @@ class DesktopApp:
             self._runner.schedule(
                 self._session.start(self._session_url(), self._current_device)
             )
-
-    def _refresh_devices(self):
-        devices = list_output_devices()
-        current = find_output_index(self._platform.driver_match_keyword, devices)
-        if current is None:
-            current = default_output_index()
-        self._apply_devices(devices, current)
 
     def _check_driver(self):
         try:
