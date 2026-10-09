@@ -13,7 +13,13 @@ from PySide6.QtCore import (
     QTimer,
     Signal,
 )
-from PySide6.QtGui import QColor, QPainter, QPixmap, QRegularExpressionValidator
+from PySide6.QtGui import (
+    QColor,
+    QIntValidator,
+    QPainter,
+    QPixmap,
+    QRegularExpressionValidator,
+)
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -26,7 +32,6 @@ from PySide6.QtWidgets import (
     QPushButton,
     QScrollArea,
     QSlider,
-    QSpinBox,
     QVBoxLayout,
     QWidget,
 )
@@ -52,6 +57,11 @@ BUTTON_MUTED_BG = QColor(0xFF, 0xB3, 0xAE)
 BUTTON_MUTED_FG = QColor(0x4A, 0x00, 0x05)
 
 SETTINGS_PANEL_WIDTH = 300
+
+# Shared look for the editable settings fields (PIN, Port).
+FIELD_STYLE = (
+    "font-family: monospace; font-size: 18px; font-weight: bold; color: #4285F4;"
+)
 
 _pixmap_cache = {}
 _tinted_cache = {}
@@ -492,10 +502,7 @@ class MainWindow(QMainWindow):
             QRegularExpressionValidator(QRegularExpression(r"[0-9]{0,10}"))
         )
         self._pin_edit.setPlaceholderText(self._t("settings_pin", "PIN"))
-        self._pin_edit.setStyleSheet(
-            "font-family: monospace; font-size: 18px; font-weight: bold;"
-            " color: #4285F4;"
-        )
+        self._pin_edit.setStyleSheet(FIELD_STYLE)
         self._pin_edit.returnPressed.connect(self._emit_pin_changed)
         pin_row.addWidget(self._pin_edit, 1)
         self._pin_apply_button = QPushButton(self._t("settings_pin_apply", "Apply"))
@@ -512,17 +519,16 @@ class MainWindow(QMainWindow):
         layout.addWidget(self._new_pin_button)
 
         port_row = QHBoxLayout()
-        self._port_label = QLabel(self._t("host_port", "Port"))
-        port_row.addWidget(self._port_label)
-        self._port_input = QSpinBox()
-        self._port_input.setRange(1024, 65535)
-        self._port_input.setValue(5000)
-        port_row.addWidget(self._port_input)
+        self._port_input = QLineEdit()
+        self._port_input.setValidator(QIntValidator(1024, 65535, self))
+        self._port_input.setPlaceholderText(self._t("host_port", "Port"))
+        self._port_input.setStyleSheet(FIELD_STYLE)
+        self._port_input.returnPressed.connect(self._on_apply_port)
+        port_row.addWidget(self._port_input, 1)
         self._apply_port_button = QPushButton(self._t("host_apply", "Apply"))
         self._apply_port_button.setObjectName("flatButton")
         self._apply_port_button.clicked.connect(self._on_apply_port)
         port_row.addWidget(self._apply_port_button)
-        port_row.addStretch(1)
         layout.addLayout(port_row)
 
         self._settings_more_label = QLabel(self._t("settings_more", "More"))
@@ -668,7 +674,7 @@ class MainWindow(QMainWindow):
         self._uninstall_button.setText(self._t("header_uninstall", "Uninstall Driver"))
         self._status_title.setText(self._t("status_label", "Mobile Connection"))
         self._gain_label.setText(self._t("desktop_gain", "Volume"))
-        self._port_label.setText(self._t("host_port", "Port"))
+        self._port_input.setPlaceholderText(self._t("host_port", "Port"))
         self._apply_port_button.setText(self._t("host_apply", "Apply"))
         self._tutorial_title.setText(self._t("tutorial_title", "Waiting for Mobile"))
         self._tutorial_warn.setText(
@@ -770,11 +776,16 @@ class MainWindow(QMainWindow):
 
     def set_port(self, port):
         self._port_input.blockSignals(True)
-        self._port_input.setValue(int(port))
+        self._port_input.setText(str(int(port)))
         self._port_input.blockSignals(False)
 
     def _on_apply_port(self):
-        self.portChangeRequested.emit(self._port_input.value())
+        text = self._port_input.text().strip()
+        if not text.isdigit():
+            return
+        port = int(text)
+        if 1024 <= port <= 65535:
+            self.portChangeRequested.emit(port)
 
     def set_qr(self, png_bytes):
         pixmap = QPixmap()
