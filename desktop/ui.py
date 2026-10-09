@@ -273,6 +273,9 @@ class MainWindow(QMainWindow):
         status_row.addWidget(self._dot)
         self._status_text = QLabel("")
         self._status_text.setObjectName("statusText")
+        # Grows with the status wording otherwise, which also pushed the
+        # window wider than its default size.
+        self._status_text.setWordWrap(True)
         status_row.addWidget(self._status_text)
         status_row.addStretch(1)
         status_box.addLayout(status_row)
@@ -336,6 +339,13 @@ class MainWindow(QMainWindow):
         control.setSpacing(16)
 
         self._device_combo = QComboBox()
+        # Without this the combo demands room for the longest device name it
+        # is given - "CABLE Input (VB-Audio Virtual Cable)" alone forced the
+        # whole window wider than its default size.
+        self._device_combo.setSizeAdjustPolicy(
+            QComboBox.AdjustToMinimumContentsLengthWithIcon
+        )
+        self._device_combo.setMinimumContentsLength(16)
         self._device_combo.currentIndexChanged.connect(self._on_device_index_changed)
         control.addWidget(self._device_combo)
 
@@ -379,7 +389,6 @@ class MainWindow(QMainWindow):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.NoFrame)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         scroll.setStyleSheet("QScrollArea { border: none; background: #121212; }")
         scroll.setWidget(content)
         self.setCentralWidget(scroll)
@@ -526,6 +535,23 @@ class MainWindow(QMainWindow):
         self._port_input.blockSignals(True)
         self._port_input.setValue(int(port))
         self._port_input.blockSignals(False)
+
+    def content_width_needed(self):
+        """Width the layout needs, i.e. the point at which nothing is clipped."""
+        content = self.centralWidget().widget()
+        if content is None:
+            return 0
+        return content.minimumSizeHint().width() + 28
+
+    def fit_to_content(self, height=820):
+        """Widen to fit the content - a full https://ip:port is long - but
+        never past the screen. Narrower than this the scroll area takes over."""
+        needed = self.content_width_needed()
+        ceiling = 1200
+        screen = QApplication.primaryScreen()
+        if screen is not None:
+            ceiling = max(420, screen.availableGeometry().width() - 80)
+        self.resize(min(max(420, needed), ceiling), height)
 
     def _on_apply_port(self):
         self.portChangeRequested.emit(self._port_input.value())

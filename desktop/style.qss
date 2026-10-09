@@ -50,9 +50,9 @@ QLabel {
     background-color: #111111;
     border: 1px solid #333333;
     border-radius: 8px;
-    padding: 8px 14px;
+    padding: 7px 10px;
     font-family: monospace;
-    font-size: 14px;
+    font-size: 12px;
     font-weight: bold;
     color: #ffffff;
 }
