@@ -49,6 +49,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -572,9 +573,9 @@ private fun HostChip(
     onClick: () -> Unit,
     onLongClick: () -> Unit
 ) {
+    val chipShape = RoundedCornerShape(50)
     Surface(
-        modifier = Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick),
-        shape = RoundedCornerShape(50),
+        shape = chipShape,
         color = if (selected) {
             MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
         } else {
@@ -596,7 +597,13 @@ private fun HostChip(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+            // The press ripple has to be inside the pill: left on the Surface's
+            // own modifier it is drawn outside the shape and paints as a hard
+            // rectangle behind the rounded chip.
+            modifier = Modifier
+                .clip(chipShape)
+                .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+                .padding(horizontal = 14.dp, vertical = 8.dp)
         )
     }
 }
