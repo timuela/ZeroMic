@@ -75,6 +75,7 @@
   "settings_title": "Cài đặt",
   "settings_language": "Ngôn ngữ",
   "settings_more": "Thêm",
+  "settings_start_with_windows": "Khởi động cùng Windows",
   "settings_version": "Phiên bản",
   "settings_close": "Đóng",
   "about_body": "WebRTC qua mạng LAN — không đám mây, không tài khoản.",

@@ -75,6 +75,7 @@
   "settings_title": "Settings",
   "settings_language": "Language",
   "settings_more": "More",
+  "settings_start_with_windows": "Start with Windows",
   "settings_version": "Version",
   "settings_close": "Close",
   "about_body": "WebRTC over LAN - no cloud, no account.",

@@ -257,6 +257,7 @@ class MainWindow(QMainWindow):
     requirePinChanged = Signal(bool)
     regeneratePinRequested = Signal()
     pinChanged = Signal(str)
+    startupChanged = Signal(bool)
     installReminderAcknowledged = Signal()
     addressSelected = Signal(str)
     portChangeRequested = Signal(int)
@@ -560,6 +561,13 @@ class MainWindow(QMainWindow):
         grid.setColumnStretch(4, 1)
         layout.addLayout(grid)
 
+        self._startup_check = QCheckBox(
+            self._t("settings_start_with_windows", "Start with Windows")
+        )
+        self._startup_check.toggled.connect(self.startupChanged.emit)
+        self._startup_check.setVisible(sys.platform == "win32")
+        layout.addWidget(self._startup_check)
+
         self._settings_more_label = QLabel(self._t("settings_more", "More"))
         self._settings_more_label.setObjectName("statusTitle")
         layout.addWidget(self._settings_more_label)
@@ -603,6 +611,11 @@ class MainWindow(QMainWindow):
 
     def _emit_pin_changed(self):
         self.pinChanged.emit(self._pin_edit.text().strip())
+
+    def set_startup_enabled(self, enabled):
+        self._startup_check.blockSignals(True)
+        self._startup_check.setChecked(bool(enabled))
+        self._startup_check.blockSignals(False)
 
     def _refresh_pin_labels(self):
         if self._pin_required and self._pin:
@@ -697,6 +710,9 @@ class MainWindow(QMainWindow):
         self._pin_label.setText(self._t("settings_pin", "PIN"))
         self._pin_apply_button.setText(self._t("settings_pin_apply", "Apply"))
         self._new_pin_button.setText(self._t("settings_new_pin", "New PIN"))
+        self._startup_check.setText(
+            self._t("settings_start_with_windows", "Start with Windows")
+        )
         self._refresh_pin_labels()
         self._settings_button.setToolTip(self._t("settings_title", "Settings"))
         self._about_button.setText(self._t("header_about", "About"))

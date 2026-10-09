@@ -116,6 +116,20 @@ jobs:
           Move-Item -Path "dist\ZeroMic.exe" -Destination "dist\ZeroMic-Host-Portable-${{ steps.version.outputs.version }}-${{ matrix.target_name }}.exe" -Force
         shell: pwsh
 
+      # The Windows runner images ship Inno Setup 6. Only x64 gets an installer;
+      # arm64 stays portable-only.
+      - name: Build installer (Windows x64)
+        if: matrix.target_name == 'windows-x64'
+        run: |
+          $iscc = (Get-Command iscc.exe -ErrorAction SilentlyContinue).Source
+          if (-not $iscc) {
+            choco install innosetup -y --no-progress
+            $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          }
+          & $iscc "/DAppVersion=${{ steps.version.outputs.version }}" "/DSourceExe=dist\ZeroMic-Host-Portable-${{ steps.version.outputs.version }}-${{ matrix.target_name }}.exe" installer\zeromic.iss
+          if ($LASTEXITCODE -ne 0) { throw "ISCC failed with exit code $LASTEXITCODE" }
+        shell: pwsh
+
       # === Linux/macOS 独立构建 (利用 Bash 和 Spec 变量) ===
       - name: Build with PyInstaller (Unix)
         if: runner.os != 'Windows'
@@ -130,7 +144,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ZeroMic-Host-${{ matrix.target_name }}
-          path: dist/ZeroMic-Host-*
+          path: |
+            dist/ZeroMic-Host-*
+            dist/ZeroMic-Setup-*
           retention-days: 5
 
   # === ZeroMic Client: the Android app ===

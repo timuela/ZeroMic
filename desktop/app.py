@@ -10,6 +10,7 @@ from PySide6.QtCore import QObject, QSettings, Qt, Signal
 from PySide6.QtGui import QAction, QIcon, QPixmap
 from PySide6.QtWidgets import QApplication, QMenu, QMessageBox, QSystemTrayIcon
 
+from desktop import startup
 from desktop.devices import default_output_index, find_output_index, list_output_devices
 from desktop.session import DesktopSession
 from desktop.ui import MainWindow
@@ -37,29 +38,31 @@ def _load_icon(path):
 
 
 def _apply_windows_taskbar_identity():
-    """Point the taskbar at our icon, but only when running from source.
+    """Give the process the right taskbar identity, when there is one to use.
 
     From source the process is python.exe, and Windows draws the taskbar button
     from that host process's identity - Python's own logo - no matter what icon
-    the window carries. An explicit AppUserModelID that no shortcut owns makes
-    the shell fall back to the window icon instead, which is the multi-size
-    ZeroMic icon run_desktop sets.
+    the window carries, so an explicit id makes the shell use the window icon.
 
-    The built exe must not do this. It has no Start Menu shortcut registering
-    an AppUserModelID, so an explicit one leaves the shell with no icon to show
-    and it draws its generic placeholder; packaged, Windows already derives the
-    identity from the exe path, whose embedded icon is correct.
+    An installed build has a Start Menu shortcut registering the same id, so it
+    is safe and correct to use it there too: the shell resolves the icon from
+    the shortcut. A portable exe has no shortcut, and an unregistered id makes
+    the shell draw its generic placeholder - so leave it alone and let Windows
+    derive the identity from the exe path, whose embedded icon is correct.
 
     Must run before the QApplication is created.
     """
-    if sys.platform != "win32" or getattr(sys, "frozen", False):
+    if sys.platform != "win32":
         return
+    app_id = startup.installed_app_id()
+    if not app_id:
+        if getattr(sys, "frozen", False):
+            return
+        app_id = "ZeroMic.Desktop.Host"
     try:
         import ctypes
 
-        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(
-            "ZeroMic.Desktop.Host"
-        )
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(app_id)
     except Exception:
         log.debug("could not set the AppUserModelID", exc_info=True)
 
@@ -222,6 +225,7 @@ class DesktopApp:
         self._window.requirePinChanged.connect(self._on_require_pin_changed)
         self._window.regeneratePinRequested.connect(self._on_regenerate_pin)
         self._window.pinChanged.connect(self._on_pin_changed)
+        self._window.startupChanged.connect(self._on_startup_changed)
         self._window.addressSelected.connect(self._on_address_selected)
         self._window.portChangeRequested.connect(self._on_port_requested)
 
@@ -270,6 +274,7 @@ class DesktopApp:
         self._window.show()
         self._apply_saved_port()
         self._apply_pin_settings()
+        self._window.set_startup_enabled(startup.is_enabled())
         # Listen from the start so the host is ready for a phone without the
         # user having to press Connect; it waits for the output device below.
         self._auto_listen_pending = True
@@ -465,6 +470,11 @@ class DesktopApp:
             getattr(self._server, "pin", "") or "",
             getattr(self._server, "require_pin", True),
         )
+
+    def _on_startup_changed(self, enabled):
+        if not startup.set_enabled(enabled):
+            # Could not write the registry: put the checkbox back to reality.
+            self._window.set_startup_enabled(startup.is_enabled())
 
     def _on_pin_changed(self, value):
         apply_pin = getattr(self._server, "set_pin", None)

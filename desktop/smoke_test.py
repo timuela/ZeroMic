@@ -102,6 +102,7 @@ try:
           window._language_combo.currentData() == "vi_vn")
     window.set_pin("123456", True)
     check("PIN is surfaced when required", window._pin_edit.text() == "123456")
+    check("settings offers Start with Windows", hasattr(window, "_startup_check"))
     window.set_devices([(0, "CABLE Input")], 0)
     window.set_addresses(["https://192.168.10.152:5000", "https://100.100.65.1:5000"])
     window.set_selected_address("https://100.100.65.1:5000")
