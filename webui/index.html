@@ -228,7 +228,8 @@
     const socket = io(window.location.origin, { autoConnect: false });
     const rtcConfig = { iceServers: [] };
     let peerConnection = null;
-    let localOffer = null;
+    let desktopOnline = false;
+    let offerSent = false;
 
     let currentState = 'idle'; // idle | connecting | active | muted
     let audioContext, analyser, dataArray, source, gainNode, micStream;
@@ -289,8 +290,13 @@
     function updateUI() {
         connectBtn.classList.toggle('active', currentState === 'active' || currentState === 'muted');
         connectBtn.disabled = currentState === 'connecting';
-        connectBtn.innerText = (currentState === 'active' || currentState === 'muted')
-            ? t('m_disconnect') : t('m_connect');
+        if (currentState === 'active' || currentState === 'muted') {
+            connectBtn.innerText = t('m_disconnect');
+        } else if (currentState === 'connecting') {
+            connectBtn.innerText = t('m_connecting');
+        } else {
+            connectBtn.innerText = t('m_connect');
+        }
 
         micBtn.className = 'mic-button ' + currentState;
         micHalo.className = 'mic-halo ' + currentState;
@@ -325,8 +331,13 @@
 
     // ---- level feedback ----------------------------------------------------
     function drawLevel() {
-        if (currentState !== 'active') return;
+        if (!micStream) return;
         animationId = requestAnimationFrame(drawLevel);
+        if (currentState === 'muted' || !analyser) {
+            micHalo.style.opacity = '0';
+            micHalo.style.transform = 'scale(1)';
+            return;
+        }
         analyser.getByteTimeDomainData(dataArray);
         let sum = 0;
         for (let i = 0; i < dataArray.length; i++) {
@@ -371,9 +382,35 @@
         gainNode.connect(dest);
         dest.stream.getTracks().forEach(track => peerConnection.addTrack(track, dest.stream));
 
-        const offer = await peerConnection.createOffer();
-        await peerConnection.setLocalDescription(offer);
-        localOffer = { type: 'offer', sdp: peerConnection.localDescription.sdp };
+        peerConnection.oniceconnectionstatechange = onIceStateChanged;
+    }
+
+    function onIceStateChanged() {
+        if (!peerConnection) return;
+        const s = peerConnection.iceConnectionState;
+        if (s === 'connected' || s === 'completed') {
+            if (currentState !== 'active' && currentState !== 'muted') {
+                currentState = 'active';
+                updateUI();
+            }
+            setStatus(t('m_connected'), '#4CAF50');
+            requestWakeLock();
+        } else if (s === 'failed' || s === 'disconnected') {
+            offerSent = false;
+            desktopOnline = false;
+            if (currentState !== 'muted') setStatus(t('m_connecting'), '#ff9800');
+        }
+    }
+
+    // Only negotiate once the host is actually present: the socket being open
+    // does not mean anything is listening on the other end yet.
+    function maybeSendOffer() {
+        if (offerSent || !socket.connected || !peerConnection || !desktopOnline) return;
+        offerSent = true;
+        peerConnection.createOffer({ iceRestart: true })
+            .then(offer => peerConnection.setLocalDescription(offer))
+            .then(() => socket.emit('offer', { type: 'offer', sdp: peerConnection.localDescription.sdp }))
+            .catch(() => { offerSent = false; });
     }
 
     function teardown() {
@@ -381,7 +418,8 @@
         releaseWakeLock();
         try { if (peerConnection) peerConnection.close(); } catch (e) {}
         peerConnection = null;
-        localOffer = null;
+        offerSent = false;
+        desktopOnline = false;
         try { if (micStream) micStream.getTracks().forEach(t => t.stop()); } catch (e) {}
         micStream = null;
         try { if (audioContext) audioContext.close(); } catch (e) {}
@@ -402,6 +440,7 @@
             mdui.alert({ headline: t('m_alert_title'), description: t('m_alert_desc'), confirmText: t('m_alert_ok') });
             return;
         }
+        drawLevel();
         socket.connect();
     }
 
@@ -419,13 +458,25 @@
     });
 
     socket.on('connect', () => {
+        desktopOnline = false;
+        offerSent = false;
         socket.emit('join', { role: 'mobile', pin: pinValue() });
-        if (localOffer) { socket.emit('offer', localOffer); localOffer = null; }
-        setStatus(t('m_connected'), '#4CAF50');
-        currentState = 'active';
+        // The signaling socket is up, but nothing is receiving yet - stay yellow
+        // until the WebRTC connection is actually established.
+        setStatus(t('m_connecting'), '#ff9800');
         updateUI();
-        drawLevel();
-        requestWakeLock();
+    });
+
+    socket.on('presence', (data) => {
+        desktopOnline = !!(data && data.desktop);
+        maybeSendOffer();
+    });
+
+    socket.on('ready', (data) => {
+        if (data && data.role === 'desktop') {
+            desktopOnline = true;
+            maybeSendOffer();
+        }
     });
 
     socket.on('disconnect', () => {
