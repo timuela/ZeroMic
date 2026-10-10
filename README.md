@@ -1,121 +1,138 @@
 <div align="center">
   <img src="https://x19.fp.ps.netease.com/file/69f5fc8dfcc7c18f65647c58EUpGTLbr07" width="128" height="128" alt="ZeroMic Logo">
   <h1>ZeroMic</h1>
-  <p><strong>No App Required (Mobile) · Portable Single-Binary (PC) · Modern MD3 UI</strong></p>
-  <p>Transform your smartphone into a High-Fidelity wireless microphone for your PC instantly.</p>
-  
+  <p><strong>Use your phone as your PC's microphone.</strong></p>
+  <p>Nothing to install on the phone. No account. Nothing leaves your Wi-Fi.</p>
+
   <p>
     <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-blue?style=flat-square" alt="Platform">
     <img src="https://img.shields.io/badge/License-GPLv3-green?style=flat-square" alt="License">
-    <img src="https://img.shields.io/badge/Built%20with-Python%20%7C%20WebRTC-yellow?style=flat-square" alt="Tech">
   </p>
 </div>
 
 ---
 
-### 🌍 Help Us Translate ZeroMic!
+## What is this?
 
-We need your help to make ZeroMic available in more languages!  
-Take a look at the existing language files in the `webui/lang/` directory:
-- `en_us.json` (English)
-- `zh_cn.json` (Simplified Chinese)
+Your desktop either has no microphone or a poor one. ZeroMic turns your phone into a good one —
+for Discord, in-game voice chat, meetings, streaming, or recording.
 
-To contribute a new translation or improve an existing one:
-1. Create a new JSON file following the same structure (e.g. `ja_jp.json`).
-2. Submit a Pull Request with your changes.
+You run a small app on the PC. It shows a web address. You open that address on your phone. From
+then on your voice travels from the phone, over your own Wi-Fi, straight into whatever app you're
+using on the PC.
 
-Every contribution helps us reach more users around the world — thank you! ❤️
----
+- **Nothing to install on the phone** — it's just a web page.
+- **Nothing goes over the internet.** Audio goes phone → PC directly, so it stays private and fast.
+- **Works with any app** that lets you choose a microphone.
 
-## 📖 Introduction
+## Getting started
 
-**ZeroMic** is a minimalist, cross-platform wireless microphone transmission tool. 
+**You need:** a Windows, Linux or macOS PC, a phone, and both on the same Wi-Fi.
 
-Whether your desktop lacks a dedicated mic or you need high-quality voice input for gaming (Discord, KOOK) or online meetings, ZeroMic has you covered. Simply run the desktop client and access the local URL via your mobile browser—no app installation required. 
+**1. Download ZeroMic for your PC** from the [Releases page](https://github.com/timuela/ZeroMic/releases):
 
-Powered by **WebRTC P2P technology**, audio data is streamed directly within your local network (LAN) **without passing through external servers**, ensuring maximum privacy and millisecond-level latency.
+| Your PC | File | What to do |
+| --- | --- | --- |
+| Windows (64-bit) | `ZeroMic-Host-Setup-<version>-windows-x64.exe` | Run it — installs with a Start Menu shortcut |
+| Windows (64-bit) | `ZeroMic-Host-Portable-<version>-windows-x64.exe` | One single file — just run it, nothing to unpack |
+| Windows (ARM) | `ZeroMic-Host-Portable-<version>-windows-arm64.exe` | Same, for ARM PCs |
+| Linux | `ZeroMic-Host-<version>-linux-x64.tar.gz` | Extract, then run `ZeroMic` |
+| macOS (Apple silicon) | `ZeroMic-Host-<version>-macos-arm64.tar.gz` | Extract, then run `ZeroMic` |
+| macOS (Intel) | `ZeroMic-Host-<version>-macos-x64.tar.gz` | Extract, then run `ZeroMic` |
 
-## ✨ Key Features
+**2. Run it.** ZeroMic needs a virtual audio device to play into, and sets one up like this:
 
-- **🚀 Out-of-the-Box:** Packaged as a single executable. No installation, no complicated setup—just double-click and go.
-- **🔧 Auto-Driver Config:** Automatically creates and configures virtual audio devices without manual intervention.
-- **🐧 True Cross-Platform:** Native support for Windows, Linux, and macOS from a single codebase.
-- **⚡ Ultra-Low Latency:** WebRTC-powered LAN streaming provides a near-wired audio experience.
-- **🎨 Modern Design:** Sleek Dark Mode with MD3 (Material Design 3) aesthetics, responsive interactions, and clear status feedback.
-- **🧹 Clean Uninstall:** Built-in cleanup feature ensures no driver residue or registry bloat is left behind.
+- **Windows** — installs it for you on first launch (10–20 seconds), and Windows asks for
+  permission. Say yes.
+- **Linux** — creates one instantly.
+- **macOS** — install [BlackHole](https://github.com/ExistentialAudio/BlackHole) first:
+  `brew install blackhole-2ch`. The app tells you if it's missing.
 
-## 🚀 Quick Start
+**3. Open the address on your phone.** The PC window shows something like `https://192.168.1.42:5000`,
+and a QR code you can scan instead of typing. Your phone and PC must be on the same Wi-Fi.
 
-### Prerequisites
-- A PC running Windows 10+, Linux (PulseAudio/PipeWire), or macOS.
-- Your phone and PC must be connected to the **same Local Area Network (Wi-Fi)**.
+**4. Accept the security warning.** Your phone will say the connection isn't private. That's
+expected — browsers only allow microphone access over HTTPS, so ZeroMic makes its own certificate.
+Tap **Advanced → Proceed**.
 
-### Usage Steps
-1. Download the executable for your platform from the [Releases](https://github.com/hypixice/ZeroMic/releases) page.
-2. **Windows**: Right-click and **Run as Administrator**. **Linux/macOS**: Run directly (no root required).
-3. On first launch, ZeroMic will automatically set up the virtual audio device. (Windows may take 10-20s for driver setup; Linux/macOS is near-instant).
-4. Once configured, a URL (e.g., `https://192.168.x.x:5000`) will be displayed on the PC client.
-5. Enter this URL in your mobile browser (Safari, Chrome, or Edge recommended).
-6. In your game or voice chat software, set the **Microphone Input Device** to the virtual device created by ZeroMic.
-7. Start talking!
+**5. Type the PIN** shown on the PC window. (You can change it, or turn the PIN off entirely, in
+Settings.)
 
-## 🖥️ ZeroMic Host — PC (portable)
+**6. Point your app at ZeroMic's microphone.** In the game, Discord, Zoom, OBS — wherever — pick
+the virtual device as the microphone input:
 
-The PC side is a **native Qt application** (PySide6), not a web page. It hosts the local
-HTTPS / Socket.IO signalling server, answers the WebRTC call with `aiortc`, and writes the decoded
-audio straight into the virtual cable through `sounddevice`. No WebView2, no browser involved.
+| Your PC | Choose this microphone |
+| --- | --- |
+| Windows | `CABLE Output (VB-Audio Virtual Cable)` |
+| Linux | `ZeroMic Virtual Output Monitor` |
+| macOS | `BlackHole 2ch` |
 
-Released on Windows as `ZeroMic-Portable-<version>-windows-x64.zip` (unzip and run `ZeroMic.exe`)
-and `ZeroMic-Setup-<version>.exe` (installs per-user, with a Start Menu shortcut and an optional
-run-at-login entry). On Linux and macOS it is `ZeroMic-Host-<version>-<platform>.tar.gz`.
+*(On Windows you'll also see a `CABLE Input` device — that's the other end of the same cable.
+The app plays into it, so you record from `CABLE Output`.)*
 
-- Native window + system tray (show / mute / exit).
-- `aiortc` as the WebRTC answerer; host-candidate ICE only, so it connects instantly on the LAN.
-- Lists **every** network address the PC has (Wi-Fi, Ethernet, VPN, Tailscale), each with its own
-  QR code, so the phone can reach it on whichever network you are actually using.
-- The listening port can be changed from the window; it is remembered between runs.
-- Auto-matches the virtual device (`CABLE Input` / `zeromic_sink` / `BlackHole`).
-- Live gain slider and mute that act on the audio callback, so they respond instantly.
+**7. Talk.**
 
-> **Building requires Python 3.11 or newer** (PySide6 6.10+ supports 3.14; CI builds on 3.11).
+ZeroMic remembers your port and PIN and starts listening again by itself next time. Close it and
+it keeps running in the tray, or turn that off in Settings.
 
-## 📱 ZeroMic Client — Android
+## On the PC
 
-The browser client works, but Android browsers (Chrome, Brave, etc.) suspend the page when the
-screen turns off, which kills the microphone stream. For reliable screen-off streaming there is a
-native client in [`android/`](./android), released as `ZeroMic-Client-<version>.apk`.
+The window is small on purpose. From it you can:
 
-- Runs as a foreground service with a partial wake lock + Wi-Fi lock, so the mic keeps streaming
-  while the screen is off.
-- Speaks the exact same Socket.IO + WebRTC signalling protocol as the web client — the PC side is
-  completely unchanged, and it also auto-recovers the session with an ICE restart if the network
-  path changes.
-- Save hosts as **profiles** and pick one from the Hosts menu instead of retyping the address.
-- Type just an IP and the port defaults to `5000`; add `:port` only when the host uses another one.
+- See whether your phone is connected.
+- Pick the audio output device ZeroMic plays into (it finds the virtual one automatically).
+- Set the volume, and mute — the tray icon can mute too.
+- Copy any of your PC's addresses (Wi-Fi, Ethernet, VPN, Tailscale), and show a QR code for
+  whichever network your phone is actually on.
+- Change the **port**, the **PIN**, the **language** (English / 中文 / Tiếng Việt), whether it
+  starts with Windows, and whether closing the window quits or hides to the tray.
 
-Requires Android 8.0 (API 26) or newer.
+## The phone app (optional)
 
-### Build
+The web page is all most people need. But Android phones stop a web page's microphone when the
+screen turns off, so for long calls there's a small native app:
+**`ZeroMic-Client-<version>.apk`** from the same [Releases page](https://github.com/timuela/ZeroMic/releases).
+Needs Android 8.0 or newer.
 
-Open the `android/` folder in Android Studio (JDK 17) and run it on your device, or from the CLI:
+- Keeps streaming with the screen off (it runs as a proper foreground service).
+- Save your PCs as **profiles** and switch between them instead of retyping the address.
+- Type just the IP — the port defaults to `5000`.
+
+## Troubleshooting
+
+**My phone says the connection isn't private.**
+That's normal and safe. It's ZeroMic's own certificate, not a broken site. Tap **Advanced**, then
+**Proceed**.
+
+**My PC suddenly has no sound (Windows).**
+The driver installer sometimes makes the virtual cable your default speaker. Click the speaker
+icon in the taskbar and switch back to your real speakers or headphones. ZeroMic reminds you about
+this after installing.
+
+**No audio at all on Linux.**
+Install PortAudio: `sudo apt install libportaudio2`. It's a system library, so it isn't bundled
+inside the app.
+
+**"pactl: command not found" (Linux).**
+You need PulseAudio or PipeWire. Most desktops already have one; if not, `sudo apt install
+pulseaudio-utils` (Debian/Ubuntu) or `sudo pacman -S pulseaudio` (Arch).
+
+**My phone can't reach the PC.**
+Check both are on the same Wi-Fi, and that you used the address the PC is actually showing —
+if you're on a VPN or Tailscale, pick that address. Guest Wi-Fi and "client isolation" block
+phone-to-PC traffic entirely.
+
+**Uninstalling the driver on Windows fails.**
+Run ZeroMic as administrator for that, and restart the PC afterwards to clear the audio routing.
+
+## Building from source
+
+Requires **Python 3.11 or newer** (PySide6 supports 3.14 from 6.10; the CI builds on 3.11).
 
 ```bash
-cd android
-./gradlew assembleDebug        # Windows: gradlew.bat assembleDebug
-```
-
-The APK is written to `android/app/build/outputs/apk/debug/app-debug.apk`.
-The [`.github/workflows/android.yml`](./.github/workflows/android.yml) workflow also builds this
-debug APK on every push that touches `android/`, so you can grab it as a build artifact.
-
-## 🛠️ Developer Guide (Build from Source)
-
-```bash
-# 1. Clone the repository
-git clone [https://github.com/hypixice/ZeroMic.git](https://github.com/hypixice/ZeroMic.git)
+git clone https://github.com/timuela/ZeroMic.git
 cd ZeroMic
 
-# 2. Create and activate virtual environment
 python -m venv .venv
 
 # Windows
@@ -127,34 +144,29 @@ pip install -r requirements-windows.txt
 source .venv/bin/activate
 pip install -r requirements.txt
 
-# 3. Build Executable
-# Windows
+# Build the desktop host — Windows
 .\build.bat
 
-# Linux / macOS
+# Build the desktop host — Linux / macOS
 ./build.sh
 ```
-The packaged binary will be located in the `dist/` directory.
 
-## ⚠️ FAQ
+The app lands in `dist/ZeroMic/`. On Windows, `dev\build-host.ps1` also produces the single-file
+portable exe, and `dev\build-installer.ps1` builds the installer (needs [Inno Setup 6](https://jrsoftware.org/isdl.php)).
 
-**Q: Mobile browser shows "Connection is not private"?**
-A: This occurs because we use a self-signed certificate for LAN HTTPS (a mandatory requirement for WebRTC). Click "Advanced" -> "Proceed to..." in your browser to continue.
+For the Android client, open `android/` in Android Studio (JDK 17) or use the CLI:
 
-**Q: Why did my PC sound stop working after setup? (Windows)**
-A: Windows sometimes sets the new virtual device as the default "Speaker". Click the volume icon in your taskbar and manually switch back to your original speakers/headphones.
+```bash
+cd android
+./gradlew assembleDebug        # Windows: gradlew.bat assembleDebug
+```
 
-**Q: The app opens but there is no audio? (Linux)**
-A: Install PortAudio: `sudo apt install libportaudio2`. ZeroMic needs it to reach the virtual sink, and it is a system library rather than something bundled into the binary.
+The APK is written to `android/app/build/outputs/apk/debug/app-debug.apk`.
 
-**Q: "pactl command not found" on Linux?**
-A: Ensure PulseAudio or PipeWire is installed. Most desktop distros include them. If missing: `sudo apt install pulseaudio-utils` (Debian/Ubuntu) or `sudo pacman -S pulseaudio` (Arch).
+## License
 
-**Q: Error when clicking "Uninstall Driver"? (Windows)**
-A: Ensure the software is running with **Administrator privileges**. It is recommended to restart your PC after uninstallation to completely clear the audio routing cache.
-
-## 📄 License
-This project is licensed under the [GPL-3.0 License](LICENSE). You are free to use, modify, and distribute the code, provided that all derivative works remain open-source under the same license.
+[GPL-3.0](LICENSE) — free to use, modify and share, as long as derivatives stay open under the
+same licence.
 
 ---
-*Created with ❤️ by Hypixice Studio.*
+*Made with ❤️ by Hypixice Studio.*
